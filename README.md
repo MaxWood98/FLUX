@@ -1,1 +1,1 @@
-A 2d Euler flow solver 
+FLUX - A 2d Euler flow solver 
