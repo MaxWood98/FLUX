@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"fortran.linter.modOutput": "${workspaceFolder}/obj",
+		"makefile.extensionOutputFolder": "./.vscode",
+		"makefile.configureOnOpen": false
+	}
+}
