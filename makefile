@@ -19,6 +19,14 @@ OBJS = $(addprefix $(OBJDIR), \
 		flux_solve.o\
 		)
 
+# OBJS = $(addprefix $(OBJDIR), \
+# 		io_utilities_module.o\
+# 		flux_data_methods.o\
+# 		flux_io.o\
+# 		flux_edge_flux.o\
+# 		flux_solve.o\
+# 		)
+
 #object patturn rules -> for every file in "dir"/*.f90, make the file *.o in $(OBJDIR) from it
 $(OBJDIR)%.o : src/%.f90
 	gfortran $(buildsettings) $(buildargs) -c $< -o $@

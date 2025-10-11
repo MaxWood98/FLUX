@@ -25,18 +25,18 @@ options%meshpath = 'grid_cell'
 
 
 
-options%aoadeg = 0.0d0 
-options%machinf = 2.0d0 
+options%aoadeg = 15.0d0 
+options%machinf = 0.95d0 
 options%gamma = 1.4d0 
 options%R = 287.058d0
 options%tinf = 288.0d0
 options%rhoinf = 1.225d0 
 
-options%niter_max = 3000
-options%cfl = 1.5d0 
+options%niter_max = 30000
+options%cfl = 1.4d0 
 
 options%rk_niter = 4
-options%k2 = 0.5d0 
+options%k2 = 1.5d0 
 options%k4 = 0.1d0
 
 options%num_threads = 8
@@ -62,7 +62,7 @@ if (options%cdisplay) then
     write(*,'(A)')'+--------------------------------------------+'
     write(*,'(A)')'|                   flux 2d                  |'
     write(*,'(A)')'|      2d unstructured euler flow solver     |'
-    write(*,'(A)')'|       Version 0.0.2 || 11/10/2025          |'
+    write(*,'(A)')'|       Version 0.0.1 || 17/04/2025          |'
     write(*,'(A)')'|                 Max Wood                   |'
     write(*,'(A)')'|           University of Bristol            |'
     write(*,'(A)')'|    Department of Aerospace Engineering     |'
@@ -77,10 +77,9 @@ end if
 call import_mesh(mesh,options%meshpath)
 if (options%cdisplay) then
     write(*,'(A,I0,A)') '    {ncell = ',mesh%ncell,'}' 
-    write(*,'(A,I0,A)') '    {nedge = ',mesh%nedge,'}' 
     write(*,'(A,I0,A)') '    {nvertex = ',mesh%nvertex,'}' 
-    write(*,'(A,E12.6,A,E12.6,A)') '    {cell volume (max/min) = ',maxval(mesh%cells_volume),' / ',&
-    minval(mesh%cells_volume),'}' 
+    write(*,'(A,E12.6,A,E12.6,A)') '    {cell volume (max/min) = ',maxval(mesh%cells(:)%volume),' / ',&
+    minval(mesh%cells(:)%volume),'}' 
 end if 
 
 !initialise the flow 
@@ -90,7 +89,7 @@ end if
 call flux_flow_initialise(mesh,options)
 
 
-! ! call read_restart_file('flowfield',mesh,options)
+! call read_restart_file('flowfield',mesh,options)
 
 
 !solve 
@@ -103,7 +102,7 @@ print *, 'COMPLETE'
 !post-process 
 call write_vtk(mesh,options,'flow.vtk')
 
-! !export data 
+!export data 
 
 stop 
 end program flux2d 

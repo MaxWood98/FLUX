@@ -25,37 +25,52 @@ real(dp) :: rk4_alpha(4) = (/1.0d0/4.0d0,1.0d0/3.0d0,1.0d0/2.0d0,1.0d0/) !rk4
 type flux_options 
     logical :: cdisplay
     logical, dimension(:), allocatable :: rk_dissipation
-    integer(in64) :: niter_max,rk_niter,num_threads
+    integer(in32) :: niter_max,rk_niter,num_threads
     real(dp) :: cfl,aoadeg,aoarad,gamma,R,k2,k4,residual_convtol
     real(dp) :: machinf,tinf,rhoinf,cinf,pinf,velinf,uinf,vinf,p0inf,rho0inf,t0inf
     character(len=:), allocatable :: meshpath,meshname
 end type flux_options 
 
-!cell type 
-type flux_cell
-    integer(in64) :: nedge,index
-    real(dp) :: volume,specrad,timestep,psens
-    real(dp) :: rho,u,v,p,e,mach,cp
-    real(dp) :: w1,w2,w3,w4,w10,w20,w30,w40,d1,d2,d3,d4,lw1,lw2,lw3,lw4,c1,c2,c3,c4
-    real(dp) :: f1,f2,f3,f4,g1,g2,g3,g4,r1,r2,r3,r4
-    integer(in64), dimension(:,:), allocatable :: edges !v1 | v2 | cell adjacent 
-    real(dp), dimension(:), allocatable :: edges_dx,edges_dy,edges_nx,edges_ny,edges_len,edges_specrad
-    contains 
-        procedure :: prim2con
-        procedure :: con2prim
-        procedure :: get_volume 
-        procedure :: get_edge_geometry
+!vertex type
+type flux_vertex
+    integer(in32) :: index
+    real(dp) :: coordinate(2)
+end type flux_vertex
+
+!edge type
+type flux_edge 
+    integer(in32) :: index
+    integer(in32) :: v1,v2,c1,c2
+    real(dp) :: dx,dy,nx,ny,length
+end type flux_edge
+
+!cell type
+type flux_cell 
+    integer(in32) :: index
+    integer(in32) :: nedge
+    integer(in32), dimension(:), allocatable :: edgev1,edgev2,edgec,edge
+    real(dp), dimension(:), allocatable :: edge_sign
 end type flux_cell
 
 !mesh type 
 type flux_mesh
-    integer(in64) :: nvertex,ncell 
+    integer(in32) :: nvertex,nedge,ncell 
     real(dp) :: cl,cd,cm,mflux_in,mflux_out
-    real(dp), dimension(:,:), allocatable :: vertices 
+    real(dp), dimension(:), allocatable :: cells_specrad,cells_volume,cells_dt,cells_psensor
+    real(dp), dimension(:), allocatable :: edges_specrad
+    real(dp), dimension(:), allocatable :: rho,u,v,p,mach,e,cp
+    real(dp), dimension(:), allocatable :: w1,w2,w3,w4,w10,w20,w30,w40,residual
+    real(dp), dimension(:), allocatable :: l1,l2,l3,l4
+    real(dp), dimension(:), allocatable :: edges_r1,edges_r2,edges_r3,edges_r4
+    real(dp), dimension(:), allocatable :: edges_l1,edges_l2,edges_l3,edges_l4
+    real(dp), dimension(:), allocatable :: edges_d1,edges_d2,edges_d3,edges_d4
+    real(dp), dimension(:), allocatable :: edges_pn,edges_pd
+    type(flux_vertex), dimension(:), allocatable :: vertices
+    type(flux_edge), dimension(:), allocatable :: edges
     type(flux_cell), dimension(:), allocatable :: cells 
     contains 
-        procedure :: get_cell_volumes
-        procedure :: get_cell_edge_geometries
+        procedure :: get_edges_geometry
+        procedure :: get_cells_volume
 end type flux_mesh
 
 !routines 
@@ -65,125 +80,150 @@ contains
 !class methods ========================================
 !======================================================
 
-!evaluate cell volumes ===============
-subroutine get_cell_volumes(self)
+!evaluate edges geometry ===============
+subroutine get_edges_geometry(self) 
 implicit none 
 
 !variables - inout
-class(flux_mesh) :: self
+class(flux_mesh) :: self 
 
 !variables - local
-integer(in64) :: ii 
-
-!evaluate cell volumes 
-do ii=1,self%ncell
-    self%cells(ii)%volume = self%cells(ii)%get_volume(self)
-    ! self%cells(ii)%volume = 0.01
-end do 
-return 
-end subroutine get_cell_volumes
-
-!evaluate cell volume ===============
-function get_volume(self,mesh) result(volume)
-implicit none 
-
-!variables - inout
-real(dp) :: volume 
-type(flux_mesh) :: mesh 
-class(flux_cell) :: self
-
-!variables - local
-integer(in64) :: ii 
-
-!evaluate the cell volume 
-volume = 0.0d0 
-do ii=1,self%nedge
-    volume = volume + edge_volume(mesh%vertices(self%edges(ii,1),:),mesh%vertices(self%edges(ii,2),:)) 
-end do 
-return 
-end function get_volume
-
-!evaluate cell edge geometries ===============
-subroutine get_cell_edge_geometries(self)
-implicit none 
-
-!variables - inout
-class(flux_mesh) :: self
-
-!variables - local
-integer(in64) :: ii 
-
-!evaluate cell volumes 
-do ii=1,self%ncell
-    call self%cells(ii)%get_edge_geometry(self)
-end do 
-return 
-end subroutine get_cell_edge_geometries
-
-!evaluate cell edge geometry ===============
-subroutine get_edge_geometry(self,mesh) 
-implicit none 
-
-!variables - inout
-type(flux_mesh) :: mesh 
-class(flux_cell) :: self
-
-!variables - local
-integer(in64) :: ii 
+integer(in32) :: ii 
 real(dp) :: dx,dy 
 
 !evaluate 
 do ii=1,self%nedge
-    dx = mesh%vertices(self%edges(ii,2),1) - mesh%vertices(self%edges(ii,1),1)
-    dy = mesh%vertices(self%edges(ii,2),2) - mesh%vertices(self%edges(ii,1),2)
-    self%edges_len(ii) = sqrt(dx*dx + dy*dy)
-    self%edges_dx(ii) = dx 
-    self%edges_dy(ii) = dy 
-    self%edges_nx(ii) = dy/self%edges_len(ii)
-    self%edges_ny(ii) = -dx/self%edges_len(ii)
+    dx = self%vertices(self%edges(ii)%v2)%coordinate(1) - self%vertices(self%edges(ii)%v1)%coordinate(1)
+    dy = self%vertices(self%edges(ii)%v2)%coordinate(2) - self%vertices(self%edges(ii)%v1)%coordinate(2)
+    self%edges(ii)%length = sqrt(dx*dx + dy*dy)
+    self%edges(ii)%dx = dx 
+    self%edges(ii)%dy = dy 
+    self%edges(ii)%nx = dy/self%edges(ii)%length
+    self%edges(ii)%ny = -dx/self%edges(ii)%length
 end do 
 return 
-end subroutine get_edge_geometry
+end subroutine get_edges_geometry
 
-!primative to conservative variables ===============
-subroutine prim2con(self,gamma)
+!evaluate cell volumes ===============
+subroutine get_cells_volume(self)
 implicit none 
 
-!variables - inout 
-real(dp) :: gamma
-class(flux_cell) :: self 
+!variables - inout
+class(flux_mesh) :: self
 
-!evaluate 
-self%w1 = self%rho
-self%w2 = self%rho*self%u 
-self%w3 = self%rho*self%v  
-self%w4 = self%rho*energy(self%p,self%rho,sqrt(self%u*self%u + self%v*self%v),gamma)
+!variables - local
+integer(in32) :: ii,jj
+
+!evaluate cell volumes 
+do ii=1,self%ncell
+    self%cells_volume(ii) = 0.0d0
+    do jj=1,self%cells(ii)%nedge
+        self%cells_volume(ii) = self%cells_volume(ii) + edge_volume(self%vertices(self%cells(ii)%edgev1(jj))%coordinate,self%vertices(self%cells(ii)%edgev2(jj))%coordinate) 
+    end do 
+end do 
+
+
+! self%cells_volume(:) = 0.0d0 
+! do ii=1,self%ncell
+!     self%cells_volume(ii) = 0.0d0
+!     do jj=1,self%cells(ii)%nedge
+        
+!         self%cells_volume(ii) = self%cells_volume(ii) + self%cells(ii)%edge_sign(jj)* &
+!         edge_volume( self%vertices(self%edges(self%cells(ii)%edge(jj))%v1 )%coordinate,self%vertices( self%edges(self%cells(ii)%edge(jj))%v2 )%coordinate) 
+
+
+!     end do 
+! end do 
 return 
-end subroutine prim2con
+end subroutine get_cells_volume
 
-!conservative to primative variables ===============
-subroutine con2prim(self,gamma,options)
-implicit none 
 
-!variables - inout 
-real(dp) :: gamma
-class(flux_cell) :: self 
-type(flux_options) :: options 
 
-!variables - local 
-real(dp) :: vel2 
 
-!evaluate 
-self%rho = self%w1
-self%u = self%w2/self%w1
-self%v = self%w3/self%w1 
-self%e = self%w4/self%w1
-vel2 = self%u*self%u + self%v*self%v
-self%p = (self%e - 0.5d0*vel2)*(gamma - 1.0)*self%w1
-self%mach = sqrt(vel2)/sqrt(gamma*(self%p/self%rho))
-self%cp = pressure_coefficient(self%p,options)
-return 
-end subroutine con2prim
+
+
+
+! !evaluate cell edge geometries ===============
+! subroutine get_cell_edge_geometries(self)
+! implicit none 
+
+! !variables - inout
+! class(flux_mesh) :: self
+
+! !variables - local
+! integer(in64) :: ii 
+
+! !evaluate cell volumes 
+! do ii=1,self%ncell
+!     call self%cells(ii)%get_edge_geometry(self)
+! end do 
+! return 
+! end subroutine get_cell_edge_geometries
+
+! !evaluate cell edge geometry ===============
+! subroutine get_edge_geometry(self,mesh) 
+! implicit none 
+
+! !variables - inout
+! type(flux_mesh) :: mesh 
+! class(flux_cell) :: self
+
+! !variables - local
+! integer(in64) :: ii 
+! real(dp) :: dx,dy 
+
+! !evaluate 
+! do ii=1,self%nedge
+!     dx = mesh%vertices(self%edges(ii,2),1) - mesh%vertices(self%edges(ii,1),1)
+!     dy = mesh%vertices(self%edges(ii,2),2) - mesh%vertices(self%edges(ii,1),2)
+!     self%edges_len(ii) = sqrt(dx*dx + dy*dy)
+!     self%edges_dx(ii) = dx 
+!     self%edges_dy(ii) = dy 
+!     self%edges_nx(ii) = dy/self%edges_len(ii)
+!     self%edges_ny(ii) = -dx/self%edges_len(ii)
+! end do 
+! return 
+! end subroutine get_edge_geometry
+
+! !primative to conservative variables ===============
+! subroutine prim2con(self,gamma)
+! implicit none 
+
+! !variables - inout 
+! real(dp) :: gamma
+! class(flux_cell) :: self 
+
+! !evaluate 
+! self%w1 = self%rho
+! self%w2 = self%rho*self%u 
+! self%w3 = self%rho*self%v  
+! self%w4 = self%rho*energy(self%p,self%rho,sqrt(self%u*self%u + self%v*self%v),gamma)
+! return 
+! end subroutine prim2con
+
+! !conservative to primative variables ===============
+! subroutine con2prim(self,gamma,options)
+! implicit none 
+
+! !variables - inout 
+! real(dp) :: gamma
+! class(flux_cell) :: self 
+! type(flux_options) :: options 
+
+! !variables - local 
+! real(dp) :: vel2 
+
+! !evaluate 
+! self%rho = self%w1
+! self%u = self%w2/self%w1
+! self%v = self%w3/self%w1 
+! self%e = self%w4/self%w1
+! vel2 = self%u*self%u + self%v*self%v
+! self%p = (self%e - 0.5d0*vel2)*(gamma - 1.0)*self%w1
+! self%mach = sqrt(vel2)/sqrt(gamma*(self%p/self%rho))
+! self%cp = pressure_coefficient(self%p,options)
+! return 
+! end subroutine con2prim
 
 !======================================================
 !general methods ======================================
@@ -241,8 +281,8 @@ e = (p/((gamma - 1.0d0)*rho)) + 0.5d0*vel*vel
 return 
 end function energy
 
-!total pressure ===============
-function total_pressure(p,mach,gamma) result(p0)
+!stagnation pressure ===============
+function stagnation_pressure(p,mach,gamma) result(p0)
 implicit none 
 
 !variables - inout 
@@ -251,10 +291,10 @@ real(dp) :: p,mach,gamma,p0
 !evaluate
 p0 = p*(1.0d0 + 0.5d0*(gamma - 1.0d0)*mach*mach)**(gamma/(gamma - 1.0d0))
 return 
-end function total_pressure 
+end function stagnation_pressure 
 
-!total density ===============
-function total_density(rho,mach,gamma) result(rho0)
+!stagnation density ===============
+function stagnation_density(rho,mach,gamma) result(rho0)
 implicit none 
 
 !variables - inout 
@@ -263,10 +303,10 @@ real(dp) :: rho,mach,gamma,rho0
 !evaluate
 rho0 = rho*(1.0d0 + 0.5d0*(gamma - 1.0d0)*mach*mach)**(gamma/(gamma - 1.0d0))
 return 
-end function total_density
+end function stagnation_density
 
-!total temperature ===============
-function total_temperature(temp,mach,gamma) result(temp0)
+!stagnation temperature ===============
+function stagnation_temperature(temp,mach,gamma) result(temp0)
 implicit none 
 
 !variables - inout 
@@ -275,7 +315,7 @@ real(dp) :: temp,mach,gamma,temp0
 !evaluate
 temp0 = temp*(1.0d0 + 0.5d0*(gamma - 1.0d0)*mach*mach)
 return 
-end function total_temperature
+end function stagnation_temperature
 
 !change basis =========================
 function change_basis(Ma2b,va) result(vb)
@@ -317,11 +357,40 @@ Ma2b(2,2) = Mb2a(1,1)*det
 return 
 end subroutine get_basis_change_2d
 
+!primative to conservative variables ===============
+subroutine prim2con(rho,u,v,p,gamma,w1,w2,w3,w4)
+implicit none 
 
+!variables - inout
+real(dp) :: rho,u,v,p,gamma,w1,w2,w3,w4
 
+!evaluate
+w1 = rho
+w2 = rho*u 
+w3 = rho*v  
+w4 = rho*energy(p,rho,sqrt(u*u + v*v),gamma)
+return 
+end subroutine prim2con
 
+!conservative to primative variables ===============
+subroutine con2prim(rho,u,v,p,e,gamma,w1,w2,w3,w4)
+implicit none 
 
+!variables - inout
+real(dp) :: rho,u,v,p,e,gamma,w1,w2,w3,w4
 
+!variables - local 
+real(dp) :: vel2
+
+!evaluate
+rho = w1
+u = w2/w1
+v = w3/w1
+e = w4/w1
+vel2 = u*u + v*v 
+p = (e - 0.5d0*vel2)*(gamma - 1.0)*w1
+return 
+end subroutine con2prim
 
 
 
