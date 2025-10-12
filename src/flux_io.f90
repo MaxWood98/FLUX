@@ -241,11 +241,11 @@ do ii=1,mesh%ncell
     write(11,'(E17.10)') mesh%v(ii)
 end do 
 
-! write(11,'(A)') 'SCALARS density_residual double' !rhores
-! write(11,'(A)') 'LOOKUP_TABLE default'
-! do ii=1,mesh%ncell
-!     write(11,'(E17.10)') mesh%cells(ii)%r1 + mesh%cells(ii)%d1
-! end do 
+write(11,'(A)') 'SCALARS density_residual double' !rhores
+write(11,'(A)') 'LOOKUP_TABLE default'
+do ii=1,mesh%ncell
+    write(11,'(E17.10)') mesh%residual(ii)
+end do 
 
 !close vtk file 
 close(11)

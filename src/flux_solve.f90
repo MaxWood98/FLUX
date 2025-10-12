@@ -94,6 +94,12 @@ real(dp) :: rhores
 resconv = .false.
 nanflag = .false.
 
+!set the number of threads 
+call omp_set_num_threads(options%num_threads)
+
+!initialise the parallel region 
+!$OMP parallel
+
 !solve 
 do iteration=1,options%niter_max
 
@@ -108,11 +114,14 @@ do iteration=1,options%niter_max
     end if
 
     !evaluate edge spectral radii
+    !$OMP do schedule(guided,50)
     do ee=1,mesh%nedge
         call edge_spectral_radius(mesh,options,ee)
     end do 
+    !$OMP end do 
 
     !evaluate cell spectral radii and timesteps 
+    !$OMP do schedule(guided,50)
     do cc=1,mesh%ncell
         mesh%cells_specrad(cc) = 0.0d0 
         do ee=1,mesh%cells(cc)%nedge
@@ -120,20 +129,36 @@ do iteration=1,options%niter_max
         end do
         mesh%cells_dt(cc) = options%cfl*(mesh%cells_volume(cc)/mesh%cells_specrad(cc))
     end do 
+    !$OMP end do 
 
     !rk iterate this timestep 
     call rk_iterate(mesh,options,nanflag)
 
 
+    !$OMP single
+    
+
+    !check convergence
+    rhores = log10(sqrt(sum((mesh%residual)**2)))
+    if (rhores .LE. options%residual_convtol) then 
+        resconv = .true.
+    end if 
 
     !display 
-    rhores = log10(sqrt(sum((mesh%residual)**2)))
-
     print *, 'iter = ',iteration,' rho_res = ', rhores
 
+    !$OMP end single
 
 end do 
 
+!end the parallel region
+!$OMP end parallel 
+
+!set derived flow properties
+do cc=1,mesh%ncell
+    mesh%mach(cc) = sqrt(mesh%u(cc)**2 + mesh%v(cc)**2)/speed_of_sound(mesh%p(cc),mesh%rho(cc),options%gamma)
+    mesh%cp(cc) = pressure_coefficient(mesh%p(cc),options)
+end do 
 return 
 end subroutine flux_flow_solve
 
@@ -150,6 +175,8 @@ logical :: nanflag
 integer(in32) :: rr,ee,cc
 real(dp) :: r1,r2,r3,r4,cell_stepsize
 
+!$OMP single
+
 !store the initial state of each cell 
 mesh%w10 = mesh%w1
 mesh%w20 = mesh%w2
@@ -158,29 +185,29 @@ mesh%w40 = mesh%w4
 
 !set the edge dissipation initial values 
 
+!$OMP end single
+
 
 !iterate
 do rr=1,options%rk_niter
 
     !evaluate edge fluxes
-    call get_edge_fluxes(mesh,options)
+    call get_edge_fluxes(mesh,options,options%rk_dissipation(rr))
 
     !evaluate edge dissipations 
     if (options%rk_dissipation(rr)) then 
-        do ee=1,mesh%nedge
-            call edge_pressure_sensor(mesh,ee) 
-            call edge_laplacian(mesh,ee)
-        end do
+        !$OMP do schedule(guided,50)
         do cc=1,mesh%ncell
             call cell_pressure_sensor(mesh,cc) 
             call cell_laplacian(mesh,cc) 
         end do 
+        !$OMP end do 
         call get_edge_dissipations(mesh,options)
     end if  
 
     !timestep each cell 
+    !$OMP do schedule(guided,50)
     do cc=1,mesh%ncell
-        cell_stepsize = rk4_alpha(rr)*(mesh%cells_dt(cc)/mesh%cells_volume(cc))
         r1 = 0.0d0 
         r2 = 0.0d0 
         r3 = 0.0d0 
@@ -191,6 +218,7 @@ do rr=1,options%rk_niter
             r3 = r3 + (mesh%edges_r3(mesh%cells(cc)%edge(ee)) + mesh%edges_d3(mesh%cells(cc)%edge(ee)))*mesh%cells(cc)%edge_sign(ee)
             r4 = r4 + (mesh%edges_r4(mesh%cells(cc)%edge(ee)) + mesh%edges_d4(mesh%cells(cc)%edge(ee)))*mesh%cells(cc)%edge_sign(ee)
         end do 
+        cell_stepsize = rk4_alpha(rr)*(mesh%cells_dt(cc)/mesh%cells_volume(cc))
         mesh%w1(cc) = mesh%w10(cc) - cell_stepsize*r1
         mesh%w2(cc) = mesh%w20(cc) - cell_stepsize*r2
         mesh%w3(cc) = mesh%w30(cc) - cell_stepsize*r3
@@ -200,9 +228,10 @@ do rr=1,options%rk_niter
         if (isnan(mesh%w1(cc))) then 
             print *, 'cell nan: ',cc
             nanflag = .true.
-            exit 
+            !exit 
         end if 
     end do 
+    !$OMP end do 
     if (nanflag) then 
         exit 
     end if 
@@ -211,10 +240,11 @@ return
 end subroutine rk_iterate
 
 !get edge fluxes ===============
-subroutine get_edge_fluxes(mesh,options)
+subroutine get_edge_fluxes(mesh,options,dissipation)
 implicit none 
 
 !variables - inout
+logical :: dissipation
 type(flux_mesh) :: mesh 
 type(flux_options) :: options 
 
@@ -225,7 +255,12 @@ real(dp) :: f1a,f2a,f3a,f4a,g1a,g2a,g3a,g4a
 real(dp) :: velnorm,machnorm
 
 !evaluate each edge flux 
+!$OMP do schedule(guided,50)
 do ee=1,mesh%nedge
+    if (dissipation) then !dissipation components
+        call edge_pressure_sensor(mesh,ee) 
+        call edge_laplacian(mesh,ee)
+    end if 
     if (mesh%edges(ee)%c2 .GT. 0) then !internal cell
         call cell_flux(f1c,f2c,f3c,f4c,g1c,g2c,g3c,g4c,mesh,mesh%edges(ee)%c1)
         call cell_flux(f1a,f2a,f3a,f4a,g1a,g2a,g3a,g4a,mesh,mesh%edges(ee)%c2)
@@ -243,10 +278,18 @@ do ee=1,mesh%nedge
         velnorm = mesh%u(mesh%edges(ee)%c1)*mesh%edges(ee)%nx + mesh%v(mesh%edges(ee)%c1)*mesh%edges(ee)%ny
         machnorm = abs(velnorm)/speed_of_sound(mesh%p(mesh%edges(ee)%c1),mesh%rho(mesh%edges(ee)%c1),options%gamma)
         call cell_flux(f1c,f2c,f3c,f4c,g1c,g2c,g3c,g4c,mesh,mesh%edges(ee)%c1)
-        if (velnorm .LT. 0.0d0) then !inflow
-            call supersonic_farfield_flux(f1a,f2a,f3a,f4a,g1a,g2a,g3a,g4a,mesh,mesh%edges(ee)%c1,options,1)
-        else !outflow
-            call supersonic_farfield_flux(f1a,f2a,f3a,f4a,g1a,g2a,g3a,g4a,mesh,mesh%edges(ee)%c1,options,-1)
+        if (machnorm .GE. 1.0) then !supersonic 
+            if (velnorm .LT. 0.0d0) then !inflow
+                call supersonic_farfield_flux(f1a,f2a,f3a,f4a,g1a,g2a,g3a,g4a,mesh,mesh%edges(ee)%c1,options,1)
+            else !outflow
+                call supersonic_farfield_flux(f1a,f2a,f3a,f4a,g1a,g2a,g3a,g4a,mesh,mesh%edges(ee)%c1,options,-1)
+            end if 
+        else !subsonic 
+            if (velnorm .LT. 0.0d0) then !inflow
+                call far_field_subsonic_flux_characteristic(f1a,f2a,f3a,f4a,g1a,g2a,g3a,g4a,mesh,mesh%edges(ee)%c1,ee,options,1)
+            else !outflow
+                call far_field_subsonic_flux_characteristic(f1a,f2a,f3a,f4a,g1a,g2a,g3a,g4a,mesh,mesh%edges(ee)%c1,ee,options,-1)
+            end if 
         end if 
     else 
 
@@ -258,6 +301,7 @@ do ee=1,mesh%nedge
     mesh%edges_r3(ee) = 0.5d0*((f3c + f3a)*mesh%edges(ee)%dy - (g3c + g3a)*mesh%edges(ee)%dx)
     mesh%edges_r4(ee) = 0.5d0*((f4c + f4a)*mesh%edges(ee)%dy - (g4c + g4a)*mesh%edges(ee)%dx)
 end do 
+!$OMP end do 
 return 
 end subroutine get_edge_fluxes
 
@@ -275,6 +319,7 @@ integer(in32) :: c1,c2
 real(dp) :: s2,s4,psi0,psi1,psi01,dk2,dk4
 
 !evaluate each edge dissipation 
+!$OMP do schedule(guided,50)
 do ee=1,mesh%nedge
     if (mesh%edges(ee)%c2 .GT. 0) then
 
@@ -293,6 +338,7 @@ do ee=1,mesh%nedge
 
         !edge dissipation coefficients 
         dk2 = 0.5d0*(mesh%cells_psensor(c1) + mesh%cells_psensor(c2))*s2*options%k2*mesh%edges_specrad(ee)
+        ! dk2 = abs(mesh%edges_pn(ee)/mesh%edges_pd(ee))*s2*options%k2*mesh%edges_specrad(ee)
         dk4 = max(0.0d0,(options%k4*mesh%edges_specrad(ee) - 2.0d0*dK2))*S4
 
         !evaluate edge dissipations 
@@ -307,6 +353,7 @@ do ee=1,mesh%nedge
         mesh%edges_d4(ee) = 0.0d0 
     end if 
 end do 
+!$OMP end do 
 return 
 end subroutine get_edge_dissipations
 
