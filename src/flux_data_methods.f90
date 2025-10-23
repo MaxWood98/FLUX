@@ -26,7 +26,7 @@ type flux_options
     logical :: cdisplay
     logical, dimension(:), allocatable :: rk_dissipation
     integer(in32) :: niter_max,rk_niter,num_threads
-    real(dp) :: cfl,aoadeg,aoarad,gamma,R,k2,k4,residual_convtol
+    real(dp) :: cfl,aoadeg,aoarad,gamma,R,k2,k4,residual_convtol,outflow_pratio
     real(dp) :: machinf,tinf,rhoinf,cinf,pinf,velinf,uinf,vinf,p0inf,rho0inf,t0inf
     character(len=:), allocatable :: meshpath,meshname
 end type flux_options 

@@ -291,6 +291,18 @@ do ee=1,mesh%nedge
                 call far_field_subsonic_flux_characteristic(f1a,f2a,f3a,f4a,g1a,g2a,g3a,g4a,mesh,mesh%edges(ee)%c1,ee,options,-1)
             end if 
         end if 
+    elseif (mesh%edges(ee)%c2 == -3) then !stagnation inflow
+        call cell_flux(f1c,f2c,f3c,f4c,g1c,g2c,g3c,g4c,mesh,mesh%edges(ee)%c1)
+        call subsonic_stagnation_inflow_flux(f1a,f2a,f3a,f4a,g1a,g2a,g3a,g4a,mesh,mesh%edges(ee)%c1,ee,options)
+    elseif (mesh%edges(ee)%c2 == -4) then !pressure outflow 
+        velnorm = mesh%u(mesh%edges(ee)%c1)*mesh%edges(ee)%nx + mesh%v(mesh%edges(ee)%c1)*mesh%edges(ee)%ny
+        machnorm = abs(velnorm)/speed_of_sound(mesh%p(mesh%edges(ee)%c1),mesh%rho(mesh%edges(ee)%c1),options%gamma)
+        call cell_flux(f1c,f2c,f3c,f4c,g1c,g2c,g3c,g4c,mesh,mesh%edges(ee)%c1)
+        if (machnorm .GE. 1.0d0) then !supersonic 
+            call supersonic_farfield_flux(f1a,f2a,f3a,f4a,g1a,g2a,g3a,g4a,mesh,mesh%edges(ee)%c1,options,-1)
+        else !subsonic 
+            call subsonic_pressure_outflow_flux_characteristic(f1a,f2a,f3a,f4a,g1a,g2a,g3a,g4a,mesh,mesh%edges(ee)%c1,ee,options,options%outflow_pratio)
+        end if 
     else 
 
     !todo: add other boundary conditions here

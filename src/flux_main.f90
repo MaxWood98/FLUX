@@ -21,25 +21,28 @@ options%cdisplay = .true.
 ! options%meshpath = 'test_meshes/kh0p1'
 ! options%meshpath = 'test_meshes/cv8x8op'
 ! options%meshpath = 'test_meshes/cv8x8rnd'
-options%meshpath = 'grid_cell'
+options%meshpath = 'grid_cell_duct'
 
 
 
-options%aoadeg = 45.0d0 
-options%machinf = 0.5d0 
+options%aoadeg = 0.0d0 
+options%machinf = 0.75d0 
 options%gamma = 1.4d0 
 options%R = 287.058d0
 options%tinf = 288.0d0
 options%rhoinf = 1.225d0 
 
-options%niter_max = 10000
-options%cfl = 1.5d0 
+options%outflow_pratio = 0.9d0
+
+
+options%niter_max = 20000
+options%cfl = 2.0d0 
 
 options%rk_niter = 4
 options%k2 = 1.0d0 
 options%k4 = 0.1d0
 
-options%num_threads = 16
+options%num_threads = 8
 options%residual_convtol = -12.0 
 
 
