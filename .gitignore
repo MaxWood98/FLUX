@@ -1,6 +1,7 @@
 # Prerequisites
 *.d
 *.vtk
+dev/*
 
 # Compiled Object files
 *.slo

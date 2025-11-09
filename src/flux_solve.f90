@@ -97,6 +97,12 @@ nanflag = .false.
 !set the number of threads 
 call omp_set_num_threads(options%num_threads)
 
+!initialise the dissipation arrays to zero (ensures this is ignored for schemes with no dissipation)
+mesh%edges_d1(:) = 0.0d0 
+mesh%edges_d2(:) = 0.0d0 
+mesh%edges_d3(:) = 0.0d0 
+mesh%edges_d4(:) = 0.0d0 
+
 !initialise the parallel region 
 !$OMP parallel
 
@@ -249,69 +255,129 @@ type(flux_mesh) :: mesh
 type(flux_options) :: options 
 
 !variables - local 
-integer(in32) :: ee 
-real(dp) :: f1c,f2c,f3c,f4c,g1c,g2c,g3c,g4c
-real(dp) :: f1a,f2a,f3a,f4a,g1a,g2a,g3a,g4a
+integer(in32) :: ee,c1,c2
 real(dp) :: velnorm,machnorm
+real(dp) :: rho1,u1,v1,p1,e1,rho2,u2,v2,p2,e2,fx1,fx2,fx3,fx4
 
 !evaluate each edge flux 
-!$OMP do schedule(guided,50)
+!$OMP do schedule(guided,50) 
 do ee=1,mesh%nedge
+    c1 = mesh%edges(ee)%c1
+    c2 = mesh%edges(ee)%c2
     if (dissipation) then !dissipation components
         call edge_pressure_sensor(mesh,ee) 
         call edge_laplacian(mesh,ee)
     end if 
-    if (mesh%edges(ee)%c2 .GT. 0) then !internal cell
-        call cell_flux(f1c,f2c,f3c,f4c,g1c,g2c,g3c,g4c,mesh,mesh%edges(ee)%c1)
-        call cell_flux(f1a,f2a,f3a,f4a,g1a,g2a,g3a,g4a,mesh,mesh%edges(ee)%c2)
-    elseif (mesh%edges(ee)%c2 == -1) then !wall       
-        call wall_flux(f1c,f2c,f3c,f4c,g1c,g2c,g3c,g4c,mesh,mesh%edges(ee)%c1)
-        f1a = f1c
-        f2a = f2c
-        f3a = f3c
-        f4a = f4c
-        g1a = g1c
-        g2a = g2c
-        g3a = g3c
-        g4a = g4c
-    elseif (mesh%edges(ee)%c2 == -2) then !farfield
-        velnorm = mesh%u(mesh%edges(ee)%c1)*mesh%edges(ee)%nx + mesh%v(mesh%edges(ee)%c1)*mesh%edges(ee)%ny
-        machnorm = abs(velnorm)/speed_of_sound(mesh%p(mesh%edges(ee)%c1),mesh%rho(mesh%edges(ee)%c1),options%gamma)
-        call cell_flux(f1c,f2c,f3c,f4c,g1c,g2c,g3c,g4c,mesh,mesh%edges(ee)%c1)
+    if (c2 .GT. 0) then !internal cell
+        rho1 = mesh%rho(c1)
+        u1 = mesh%u(c1)
+        v1 = mesh%v(c1)
+        p1 = mesh%p(c1)
+        e1 = mesh%e(c1)
+        rho2 = mesh%rho(c2) 
+        u2 = mesh%u(c2)
+        v2 = mesh%v(c2)
+        p2 = mesh%p(c2)
+        e2 = mesh%e(c2)
+
+
+
+
+        call roe_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,options%gamma,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+        ! call jameson_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+
+    elseif (c2 == -1) then !wall   
+        rho1 = 0.0
+        u1 = 0.0
+        v1 = 0.0
+        p1 = mesh%p(c1)
+        e1 = 0.0
+        rho2 = 0.0
+        u2 = 0.0
+        v2 = 0.0
+        p2 = mesh%p(c1)
+        e2 = 0.0
+
+        
+
+
+        call jameson_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+
+
+
+    elseif (c2 == -2) then !farfield
+        rho1 = mesh%rho(c1)
+        u1 = mesh%u(c1)
+        v1 = mesh%v(c1)
+        p1 = mesh%p(c1)
+        e1 = mesh%e(c1)
+        velnorm = mesh%u(c1)*mesh%edges(ee)%nx + mesh%v(c1)*mesh%edges(ee)%ny
+        machnorm = abs(velnorm)/speed_of_sound(mesh%p(c1),mesh%rho(c1),options%gamma)
         if (machnorm .GE. 1.0) then !supersonic 
             if (velnorm .LT. 0.0d0) then !inflow
-                call supersonic_farfield_flux(f1a,f2a,f3a,f4a,g1a,g2a,g3a,g4a,mesh,mesh%edges(ee)%c1,options,1)
+                call farfield_supersonic_bc_prescribed(rho2,u2,v2,p2,e2,mesh,c1,options,1)
             else !outflow
-                call supersonic_farfield_flux(f1a,f2a,f3a,f4a,g1a,g2a,g3a,g4a,mesh,mesh%edges(ee)%c1,options,-1)
+                call farfield_supersonic_bc_prescribed(rho2,u2,v2,p2,e2,mesh,c1,options,-1)
             end if 
         else !subsonic 
             if (velnorm .LT. 0.0d0) then !inflow
-                call far_field_subsonic_flux_characteristic(f1a,f2a,f3a,f4a,g1a,g2a,g3a,g4a,mesh,mesh%edges(ee)%c1,ee,options,1)
+                call farfield_subsonic_bc_characteristic(rho2,u2,v2,p2,e2,mesh,c1,ee,options,1)
             else !outflow
-                call far_field_subsonic_flux_characteristic(f1a,f2a,f3a,f4a,g1a,g2a,g3a,g4a,mesh,mesh%edges(ee)%c1,ee,options,-1)
+                call farfield_subsonic_bc_characteristic(rho2,u2,v2,p2,e2,mesh,c1,ee,options,-1)
             end if 
         end if 
-    elseif (mesh%edges(ee)%c2 == -3) then !stagnation inflow
-        call cell_flux(f1c,f2c,f3c,f4c,g1c,g2c,g3c,g4c,mesh,mesh%edges(ee)%c1)
-        call subsonic_stagnation_inflow_flux(f1a,f2a,f3a,f4a,g1a,g2a,g3a,g4a,mesh,mesh%edges(ee)%c1,ee,options)
-    elseif (mesh%edges(ee)%c2 == -4) then !pressure outflow 
-        velnorm = mesh%u(mesh%edges(ee)%c1)*mesh%edges(ee)%nx + mesh%v(mesh%edges(ee)%c1)*mesh%edges(ee)%ny
-        machnorm = abs(velnorm)/speed_of_sound(mesh%p(mesh%edges(ee)%c1),mesh%rho(mesh%edges(ee)%c1),options%gamma)
-        call cell_flux(f1c,f2c,f3c,f4c,g1c,g2c,g3c,g4c,mesh,mesh%edges(ee)%c1)
-        if (machnorm .GE. 1.0d0) then !supersonic 
-            call supersonic_farfield_flux(f1a,f2a,f3a,f4a,g1a,g2a,g3a,g4a,mesh,mesh%edges(ee)%c1,options,-1)
+
+
+        
+
+
+        ! call roe_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,options%gamma,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+        call jameson_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+
+
+
+    elseif (c2 == -3) then !stagnation inflow
+
+        rho1 = mesh%rho(c1)
+        u1 = mesh%u(c1)
+        v1 = mesh%v(c1)
+        p1 = mesh%p(c1)
+        e1 = mesh%e(c1)
+        call subsonic_stagnation_inflow_bc(rho2,u2,v2,p2,e2,mesh,c1,ee,options)
+
+        ! call roe_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,options%gamma,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+        call jameson_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+        
+    elseif (c2 == -4) then !pressure outflow 
+
+
+        rho1 = mesh%rho(c1)
+        u1 = mesh%u(c1)
+        v1 = mesh%v(c1)
+        p1 = mesh%p(c1)
+        e1 = mesh%e(c1)
+        velnorm = mesh%u(c1)*mesh%edges(ee)%nx + mesh%v(c1)*mesh%edges(ee)%ny
+        machnorm = abs(velnorm)/speed_of_sound(mesh%p(c1),mesh%rho(c1),options%gamma)
+        if (machnorm .GE. 1.0) then !supersonic 
+            call farfield_supersonic_bc_prescribed(rho2,u2,v2,p2,e2,mesh,c1,options,-1)
         else !subsonic 
-            call subsonic_pressure_outflow_flux_characteristic(f1a,f2a,f3a,f4a,g1a,g2a,g3a,g4a,mesh,mesh%edges(ee)%c1,ee,options,options%outflow_pratio)
+            call subsonic_pressure_outflow_bc_characteristic(rho2,u2,v2,p2,e2,mesh,c1,ee,options,options%outflow_pratio)
         end if 
+
+        ! call roe_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,options%gamma,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+        call jameson_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+
     else 
 
-    !todo: add other boundary conditions here
+        !todo: add other boundary conditions here
 
     end if 
-    mesh%edges_r1(ee) = 0.5d0*((f1c + f1a)*mesh%edges(ee)%dy - (g1c + g1a)*mesh%edges(ee)%dx)
-    mesh%edges_r2(ee) = 0.5d0*((f2c + f2a)*mesh%edges(ee)%dy - (g2c + g2a)*mesh%edges(ee)%dx)
-    mesh%edges_r3(ee) = 0.5d0*((f3c + f3a)*mesh%edges(ee)%dy - (g3c + g3a)*mesh%edges(ee)%dx)
-    mesh%edges_r4(ee) = 0.5d0*((f4c + f4a)*mesh%edges(ee)%dy - (g4c + g4a)*mesh%edges(ee)%dx)
+
+    !evaluate the residuals
+    mesh%edges_r1(ee) = fx1
+    mesh%edges_r2(ee) = fx2
+    mesh%edges_r3(ee) = fx3
+    mesh%edges_r4(ee) = fx4
 end do 
 !$OMP end do 
 return 

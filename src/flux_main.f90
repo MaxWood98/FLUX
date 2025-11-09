@@ -21,21 +21,21 @@ options%cdisplay = .true.
 ! options%meshpath = 'test_meshes/kh0p1'
 ! options%meshpath = 'test_meshes/cv8x8op'
 ! options%meshpath = 'test_meshes/cv8x8rnd'
-options%meshpath = 'grid_cell_duct'
+options%meshpath = 'grid_cell_naca'
 
 
 
 options%aoadeg = 0.0d0 
-options%machinf = 0.75d0 
+options%machinf = 0.98d0 
 options%gamma = 1.4d0 
 options%R = 287.058d0
 options%tinf = 288.0d0
 options%rhoinf = 1.225d0 
 
-options%outflow_pratio = 0.9d0
+options%outflow_pratio = 0.6d0
 
 
-options%niter_max = 20000
+options%niter_max = 10000
 options%cfl = 2.0d0 
 
 options%rk_niter = 4
@@ -51,7 +51,7 @@ options%residual_convtol = -12.0
 
 
 allocate(options%rk_dissipation(options%rk_niter))
-options%rk_dissipation(1) = .true.
+options%rk_dissipation(1) = .false.
 options%rk_dissipation(2) = .false.
 options%rk_dissipation(3) = .false.
 options%rk_dissipation(4) = .false.
