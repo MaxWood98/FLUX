@@ -281,10 +281,10 @@ do ee=1,mesh%nedge
         e2 = mesh%e(c2)
 
 
-
-
-        call roe_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,options%gamma,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+        call ausm_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,options%gamma,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+        ! call roe_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,options%gamma,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
         ! call jameson_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+
 
     elseif (c2 == -1) then !wall   
         rho1 = 0.0
@@ -297,14 +297,7 @@ do ee=1,mesh%nedge
         v2 = 0.0
         p2 = mesh%p(c1)
         e2 = 0.0
-
-        
-
-
         call jameson_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
-
-
-
     elseif (c2 == -2) then !farfield
         rho1 = mesh%rho(c1)
         u1 = mesh%u(c1)
@@ -326,31 +319,16 @@ do ee=1,mesh%nedge
                 call farfield_subsonic_bc_characteristic(rho2,u2,v2,p2,e2,mesh,c1,ee,options,-1)
             end if 
         end if 
-
-
-        
-
-
-        ! call roe_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,options%gamma,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
         call jameson_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
-
-
-
     elseif (c2 == -3) then !stagnation inflow
-
         rho1 = mesh%rho(c1)
         u1 = mesh%u(c1)
         v1 = mesh%v(c1)
         p1 = mesh%p(c1)
         e1 = mesh%e(c1)
         call subsonic_stagnation_inflow_bc(rho2,u2,v2,p2,e2,mesh,c1,ee,options)
-
-        ! call roe_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,options%gamma,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
-        call jameson_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
-        
+        call jameson_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4) 
     elseif (c2 == -4) then !pressure outflow 
-
-
         rho1 = mesh%rho(c1)
         u1 = mesh%u(c1)
         v1 = mesh%v(c1)
@@ -363,10 +341,7 @@ do ee=1,mesh%nedge
         else !subsonic 
             call subsonic_pressure_outflow_bc_characteristic(rho2,u2,v2,p2,e2,mesh,c1,ee,options,options%outflow_pratio)
         end if 
-
-        ! call roe_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,options%gamma,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
         call jameson_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
-
     else 
 
         !todo: add other boundary conditions here

@@ -21,22 +21,22 @@ options%cdisplay = .true.
 ! options%meshpath = 'test_meshes/kh0p1'
 ! options%meshpath = 'test_meshes/cv8x8op'
 ! options%meshpath = 'test_meshes/cv8x8rnd'
-options%meshpath = 'grid_cell_naca'
+options%meshpath = 'grid_cell_kh'
 
 
 
-options%aoadeg = 0.0d0 
-options%machinf = 0.98d0 
+options%aoadeg = 10.0d0 
+options%machinf = 2.0d0 
 options%gamma = 1.4d0 
 options%R = 287.058d0
 options%tinf = 288.0d0
 options%rhoinf = 1.225d0 
 
-options%outflow_pratio = 0.6d0
+options%outflow_pratio = 0.1d0
 
 
 options%niter_max = 10000
-options%cfl = 2.0d0 
+options%cfl = 1.25d0 
 
 options%rk_niter = 4
 options%k2 = 1.0d0 
