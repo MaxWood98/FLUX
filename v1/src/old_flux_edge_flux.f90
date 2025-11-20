@@ -4,7 +4,7 @@
 !updated : 28-03-25
 
 !module 
-module edge_flux
+module old_edge_flux
 use flux_data_methods
 contains 
 
@@ -254,4 +254,4 @@ end subroutine far_field_subsonic_flux_characteristic
 ! end subroutine get_basis_change
 
 
-end module edge_flux
+end module old_edge_flux

@@ -8,6 +8,76 @@ module edge_flux
 use flux_data_methods
 contains 
 
+!VanLeer flux ===============
+subroutine vanleer_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,gamma,nx,ny,elen,fx1,fx2,fx3,fx4)
+implicit none 
+
+!variables - inout 
+real(dp) :: rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,gamma,nx,ny,elen
+real(dp) :: fx1,fx2,fx3,fx4
+
+!variables - local
+real(dp) ::  ma,c1,c2,vn1,vn2,m1p,m2p,m1,m2
+real(dp) :: f11,f21,f31,f41,f12,f22,f32,f42
+
+!get edge normal velocities
+vn1 = u1*nx + v1*ny 
+vn2 = u2*nx + v2*ny 
+
+!get the speed of sound in each cell 
+c1 = speed_of_sound(p1,rho1,gamma)
+c2 = speed_of_sound(p2,rho2,gamma)
+
+!get the machs in each cell
+m1 = vn1/c1
+m2 = vn2/c2
+if (abs(m1) .LE. 1.0d0) then 
+    m1p = 0.25d0*((m1 + 1.0d0)**2)
+else !m1 .LE. -1.0d0
+    m1p = 0.5d0*(m1 + abs(m1))
+end if 
+if (abs(m2) .LE. 1.0d0) then 
+    m2p = -0.25d0*((m2 - 1.0d0)**2)
+else !m1 .LE. -1.0d0
+    m2p = 0.5d0*(m2 - abs(m2))
+end if 
+ma = m1p + m2p
+
+!evaluate the edge flux
+if (ma .GE. 1.0d0) then 
+    fx1 = (rho1*vn1)*elen
+    fx2 = (rho1*u1*vn1 + nx*p1)*elen
+    fx3 = (rho1*v1*vn1 + ny*p1)*elen
+    fx4 = (rho1*vn1*e1 + vn1*p1)*elen
+elseif (ma .LE. -1.0d0) then 
+    fx1 = (rho2*vn2)*elen
+    fx2 = (rho2*u2*vn2 + nx*p2)*elen
+    fx3 = (rho2*v2*vn2 + ny*p2)*elen
+    fx4 = (rho2*vn2*e2 + vn2*p2)*elen
+else
+
+    !evaluate flux 1
+    f11 = 0.25d0*rho1*c1*(m1 + 1.0d0)**2
+    f21 = f11*((nx*(-vn1 + 2.0d0*c1)/gamma) + u1)
+    f31 = f11*((ny*(-vn1 + 2.0d0*c1)/gamma) + v1)
+    f41 = f11*((((gamma - 1.0d0)*vn1 + 2.0d0*c1)**2)/(2.0d0*(gamma*gamma - 1.0d0)) + 0.5d0*(u1*u1 + v1*v1 - vn1*vn1))
+
+    !evaluate flux 2
+    f12 = -0.25d0*rho2*c2*(m2 - 1.0d0)**2
+    f22 = f12*((nx*(-vn2 - 2.0d0*c2)/gamma) + u2)
+    f32 = f12*((ny*(-vn2 - 2.0d0*c2)/gamma) + v2)
+    f42 = f12*((((gamma - 1.0d0)*vn2 - 2.0d0*c2)**2)/(2.0d0*(gamma*gamma - 1.0d0)) + 0.5d0*(u2*u2 + v2*v2 - vn2*vn2))
+
+    !evaluate th edge flux
+    fx1 = (f11 + f12)*elen
+    fx2 = (f21 + f22)*elen
+    fx3 = (f31 + f32)*elen
+    fx4 = (f41 + f42)*elen
+end if 
+
+return 
+end subroutine vanleer_flux
+
 !AUSM flux ===============
 subroutine ausm_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,gamma,nx,ny,elen,fx1,fx2,fx3,fx4)
 implicit none 

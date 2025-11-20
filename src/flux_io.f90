@@ -211,7 +211,7 @@ end do
 
 !write cell based data
 write(11,'(A,I0)') 'CELL_DATA ',mesh%ncell
-write(11,'(A)') 'SCALARS Cp double' !cp
+write(11,'(A)') 'SCALARS cp double' !cp
 write(11,'(A)') 'LOOKUP_TABLE default'
 do ii=1,mesh%ncell
     write(11,'(E17.10)') pressure_coefficient(mesh%p(ii),options)
@@ -223,7 +223,7 @@ do ii=1,mesh%ncell
     write(11,'(E17.10)') mesh%p(ii)
 end do 
 
-write(11,'(A)') 'SCALARS Mach double' !mach
+write(11,'(A)') 'SCALARS mach double' !mach
 write(11,'(A)') 'LOOKUP_TABLE default'
 do ii=1,mesh%ncell
     write(11,'(E17.10)') mesh%mach(ii)

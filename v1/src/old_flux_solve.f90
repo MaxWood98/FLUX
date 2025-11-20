@@ -4,7 +4,7 @@
 !updated : 28-03-25
 
 !module 
-module flux_solve
+module old_flux_solve
 use omp_lib
 use edge_flux
 use io_utilities
@@ -559,4 +559,4 @@ lam_edge = (abs(cell%edges_nx(edgeidx)*ue + cell%edges_ny(edgeidx)*ve) + sose)*c
 return 
 end function edge_spectral_radius
 
-end module flux_solve
+end module old_flux_solve

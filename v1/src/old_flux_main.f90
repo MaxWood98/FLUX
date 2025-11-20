@@ -4,7 +4,7 @@
 !updated : 28-03-25
 
 !program 
-program flux2d
+program old_flux2d
 use flux_io
 use flux_solve
 implicit none 
@@ -105,4 +105,4 @@ call write_vtk(mesh,options,'flow.vtk')
 !export data 
 
 stop 
-end program flux2d 
+end program old_flux2d 

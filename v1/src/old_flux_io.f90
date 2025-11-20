@@ -4,7 +4,7 @@
 !updated : 28-03-25
 
 !module 
-module flux_io
+module old_flux_io
 use io_utilities
 use flux_data_methods
 contains 
@@ -136,7 +136,7 @@ end do
 
 !write cell based data
 write(11,'(A,I0)') 'CELL_DATA ',mesh%ncell
-write(11,'(A)') 'SCALARS Cp double' !cp
+write(11,'(A)') 'SCALARS cp double' !cp
 write(11,'(A)') 'LOOKUP_TABLE default'
 do ii=1,mesh%ncell
     write(11,'(E17.10)') pressure_coefficient(mesh%cells(ii)%p,options)
@@ -148,7 +148,7 @@ do ii=1,mesh%ncell
     write(11,'(E17.10)') mesh%cells(ii)%p
 end do 
 
-write(11,'(A)') 'SCALARS Mach double' !mach
+write(11,'(A)') 'SCALARS mach double' !mach
 write(11,'(A)') 'LOOKUP_TABLE default'
 do ii=1,mesh%ncell
     write(11,'(E17.10)') mesh%cells(ii)%mach
@@ -206,4 +206,4 @@ return
 end subroutine read_restart_file
 
 
-end module flux_io
+end module old_flux_io
