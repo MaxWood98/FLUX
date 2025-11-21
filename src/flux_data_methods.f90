@@ -56,6 +56,7 @@ end type flux_cell
 type flux_mesh
     integer(in32) :: nvertex,nedge,ncell 
     real(dp) :: cl,cd,cm,mflux_in,mflux_out
+    integer(in32), dimension(:), allocatable :: cells_colour
     real(dp), dimension(:), allocatable :: cells_specrad,cells_volume,cells_dt,cells_psensor
     real(dp), dimension(:), allocatable :: edges_specrad
     real(dp), dimension(:), allocatable :: rho,u,v,p,mach,e,cp

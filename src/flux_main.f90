@@ -7,6 +7,9 @@
 program flux2d
 use flux_io
 use flux_solve
+
+use flux_adjoint
+
 implicit none 
 
 !variables 
@@ -42,7 +45,7 @@ options%rk_niter = 4
 options%k2 = 0.05d0 
 options%k4 = 0.005d0
 
-options%num_threads = 8
+options%num_threads = 1
 options%residual_convtol = -12.0 
 
 
@@ -65,7 +68,7 @@ if (options%cdisplay) then
     write(*,'(A)')'+--------------------------------------------+'
     write(*,'(A)')'|                   flux 2d                  |'
     write(*,'(A)')'|      2d unstructured euler flow solver     |'
-    write(*,'(A)')'|       Version 0.0.2 || 11/10/2025          |'
+    write(*,'(A)')'|       Version 0.0.2 || 21/11/2025          |'
     write(*,'(A)')'|                 Max Wood                   |'
     write(*,'(A)')'|           University of Bristol            |'
     write(*,'(A)')'|    Department of Aerospace Engineering     |'
@@ -86,27 +89,38 @@ if (options%cdisplay) then
     minval(mesh%cells_volume),'}' 
 end if 
 
-!initialise the flow 
-if (options%cdisplay) then
-    write(*,'(A)') '--> initialising'
-end if 
-call flux_flow_initialise(mesh,options)
+! !initialise the flow 
+! if (options%cdisplay) then
+!     write(*,'(A)') '--> initialising'
+! end if 
+! call flux_flow_initialise(mesh,options)
+
+! !solve 
+! if (options%cdisplay) then
+!     write(*,'(A)') '--> solving'
+! end if 
+! call flux_flow_solve(mesh,options)
+! print *, 'COMPLETE'
+
+! !post-process 
+! call write_vtk(mesh,options,'flow.vtk')
+! call write_flow_field('flowfield',mesh)
 
 
-! ! call read_restart_file('flowfield',mesh,options)
 
 
-!solve 
-if (options%cdisplay) then
-    write(*,'(A)') '--> solving'
-end if 
-call flux_flow_solve(mesh,options)
-print *, 'COMPLETE'
+!adjoint dev =====================
 
-!post-process 
+!import solution
+call read_flow_field('flowfield',mesh)
+
+!adjoint process
+call colour_cells(mesh,options)
+! call build_flow_jacobian_full(mesh,options)
+
+
+!export solution
 call write_vtk(mesh,options,'flow.vtk')
-
-! !export data 
 
 stop 
 end program flux2d 

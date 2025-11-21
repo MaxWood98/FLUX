@@ -63,6 +63,7 @@ do while (iostatus == 0)
         allocate(mesh%cells_psensor(mesh%ncell))
         allocate(mesh%residual(mesh%ncell))
         
+        allocate(mesh%cells_colour(mesh%ncell))
 
         do ii=1,mesh%ncell
             read(11,*) cindex,nedge 
@@ -211,11 +212,12 @@ end do
 
 !write cell based data
 write(11,'(A,I0)') 'CELL_DATA ',mesh%ncell
-write(11,'(A)') 'SCALARS cp double' !cp
-write(11,'(A)') 'LOOKUP_TABLE default'
-do ii=1,mesh%ncell
-    write(11,'(E17.10)') pressure_coefficient(mesh%p(ii),options)
-end do 
+
+! write(11,'(A)') 'SCALARS cp double' !cp
+! write(11,'(A)') 'LOOKUP_TABLE default'
+! do ii=1,mesh%ncell
+!     write(11,'(E17.10)') pressure_coefficient(mesh%p(ii),options)
+! end do 
 
 write(11,'(A)') 'SCALARS p double' !p
 write(11,'(A)') 'LOOKUP_TABLE default'
@@ -223,11 +225,11 @@ do ii=1,mesh%ncell
     write(11,'(E17.10)') mesh%p(ii)
 end do 
 
-write(11,'(A)') 'SCALARS mach double' !mach
-write(11,'(A)') 'LOOKUP_TABLE default'
-do ii=1,mesh%ncell
-    write(11,'(E17.10)') mesh%mach(ii)
-end do 
+! write(11,'(A)') 'SCALARS mach double' !mach
+! write(11,'(A)') 'LOOKUP_TABLE default'
+! do ii=1,mesh%ncell
+!     write(11,'(E17.10)') mesh%mach(ii)
+! end do 
 
 write(11,'(A)') 'SCALARS u double' !u
 write(11,'(A)') 'LOOKUP_TABLE default'
@@ -241,16 +243,64 @@ do ii=1,mesh%ncell
     write(11,'(E17.10)') mesh%v(ii)
 end do 
 
-write(11,'(A)') 'SCALARS density_residual double' !rhores
+! write(11,'(A)') 'SCALARS density_residual double' !rhores
+! write(11,'(A)') 'LOOKUP_TABLE default'
+! do ii=1,mesh%ncell
+!     write(11,'(E17.10)') mesh%residual(ii)
+! end do 
+
+write(11,'(A)') 'SCALARS cell_colour integer' !cell colour
 write(11,'(A)') 'LOOKUP_TABLE default'
 do ii=1,mesh%ncell
-    write(11,'(E17.10)') mesh%residual(ii)
+    write(11,'(I0)') mesh%cells_colour(ii)
 end do 
+
 
 !close vtk file 
 close(11)
 return 
 end subroutine write_vtk
+
+!write flow field =========================
+subroutine write_flow_field(filename,mesh)
+implicit none 
+
+!variables - inout
+character(*), intent(in) :: filename
+type(flux_mesh) :: mesh 
+
+!variables local
+integer(in32) :: cc 
+
+!write flow data 
+open(11,file=filename) 
+do cc=1,mesh%ncell
+    write(11,'(E17.10,A,E17.10,A,E17.10,A,E17.10,A,E17.10)') mesh%rho(cc),' ',mesh%u(cc),' ',mesh%v(cc),' ',mesh%p(cc),' ',mesh%e(cc)
+end do 
+close(11)
+return 
+end subroutine write_flow_field
+
+!read flow field =========================
+subroutine read_flow_field(filename,mesh)
+implicit none 
+
+!variables - inout
+character(*), intent(in) :: filename
+type(flux_mesh) :: mesh 
+
+!variables local
+integer(in32) :: cc 
+
+!write flow data 
+open(11,file=filename) 
+do cc=1,mesh%ncell
+    read(11,*) mesh%rho(cc),mesh%u(cc),mesh%v(cc),mesh%p(cc),mesh%e(cc)
+end do 
+close(11)
+return 
+end subroutine read_flow_field
+
 
 
 ! !read restart file =========================

@@ -5,7 +5,6 @@
 
 !module 
 module flux_solve
-! use omp_lib
 use edge_flux
 use io_utilities
 use flux_data_methods

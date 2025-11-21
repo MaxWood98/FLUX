@@ -1,7 +1,7 @@
 #build arguments  #-Wall -fbounds-check -ffpe-trap=underflow,zero -fopt-info-optimized=$@_opt.dat
-# buildargs = -O0 -Wall -fbounds-check -ffpe-trap=zero,overflow,underflow,invalid,denormal -fbacktrace -fcheck=all -fopenmp
+buildargs = -O0 -Wall -fbounds-check -ffpe-trap=zero,overflow,underflow,invalid,denormal -fbacktrace -fcheck=all -fopenmp
 # buildargs = -O0 -fopenmp
-buildargs = -O2 -fopenmp
+# buildargs = -O2 -fopenmp
 # buildargs = -O2 -fopt-info-optimized=$@_opt.dat
 
 #build settings
@@ -17,6 +17,7 @@ OBJS = $(addprefix $(OBJDIR), \
 		flux_io.o\
 		flux_edge_flux.o\
 		flux_solve.o\
+		flux_adjoint.o\
 		)
 
 # OBJS = $(addprefix $(OBJDIR), \
