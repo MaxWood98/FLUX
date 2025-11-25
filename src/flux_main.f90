@@ -24,12 +24,12 @@ options%cdisplay = .true.
 ! options%meshpath = 'test_meshes/kh0p1'
 ! options%meshpath = 'test_meshes/cv8x8op'
 ! options%meshpath = 'test_meshes/cv8x8rnd'
-options%meshpath = 'grid_cell_naca'
+options%meshpath = 'grid_cell'
 
 
 
 options%aoadeg = 0.0d0 
-options%machinf = 0.975d0 
+options%machinf = 0.75d0 
 options%gamma = 1.4d0 
 options%R = 287.058d0
 options%tinf = 288.0d0
@@ -46,7 +46,7 @@ options%k2 = 0.05d0
 options%k4 = 0.005d0
 
 options%num_threads = 1
-options%residual_convtol = -12.0 
+options%residual_convtol = -16.0 
 
 
 
@@ -111,13 +111,12 @@ end if
 
 !adjoint dev =====================
 
-!import solution
-call read_flow_field('flowfield',mesh)
+! !import solution
+! call read_flow_field('flowfield',mesh)
 
-!adjoint process
-call colour_cells(mesh,options)
-! call build_flow_jacobian_full(mesh,options)
 
+!adjoint solve 
+call flux_adjoint_solve(mesh,options)
 
 !export solution
 call write_vtk(mesh,options,'flow.vtk')

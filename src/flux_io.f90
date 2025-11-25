@@ -64,6 +64,8 @@ do while (iostatus == 0)
         allocate(mesh%residual(mesh%ncell))
         
         allocate(mesh%cells_colour(mesh%ncell))
+        allocate(mesh%cells_nadj(mesh%ncell))
+        
 
         do ii=1,mesh%ncell
             read(11,*) cindex,nedge 
