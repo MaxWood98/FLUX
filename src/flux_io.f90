@@ -227,6 +227,12 @@ do ii=1,mesh%ncell
     write(11,'(E17.10)') mesh%p(ii)
 end do 
 
+write(11,'(A)') 'SCALARS rho double' !eho
+write(11,'(A)') 'LOOKUP_TABLE default'
+do ii=1,mesh%ncell
+    write(11,'(E17.10)') mesh%rho(ii)
+end do 
+
 ! write(11,'(A)') 'SCALARS mach double' !mach
 ! write(11,'(A)') 'LOOKUP_TABLE default'
 ! do ii=1,mesh%ncell
@@ -251,12 +257,37 @@ end do
 !     write(11,'(E17.10)') mesh%residual(ii)
 ! end do 
 
+
+
 write(11,'(A)') 'SCALARS cell_colour integer' !cell colour
 write(11,'(A)') 'LOOKUP_TABLE default'
 do ii=1,mesh%ncell
     write(11,'(I0)') mesh%cells_colour(ii)
 end do 
 
+write(11,'(A)') 'SCALARS psi_rho double' !psi_rho
+write(11,'(A)') 'LOOKUP_TABLE default'
+do ii=1,mesh%ncell
+    write(11,'(E17.10)') mesh%psi_rho(ii)
+end do 
+
+write(11,'(A)') 'SCALARS psi_u double' !psi_u
+write(11,'(A)') 'LOOKUP_TABLE default'
+do ii=1,mesh%ncell
+    write(11,'(E17.10)') mesh%psi_u(ii)
+end do 
+
+write(11,'(A)') 'SCALARS psi_v double' !psi_v
+write(11,'(A)') 'LOOKUP_TABLE default'
+do ii=1,mesh%ncell
+    write(11,'(E17.10)') mesh%psi_v(ii)
+end do 
+
+write(11,'(A)') 'SCALARS psi_e double' !psi_e
+write(11,'(A)') 'LOOKUP_TABLE default'
+do ii=1,mesh%ncell
+    write(11,'(E17.10)') mesh%psi_e(ii)
+end do 
 
 !close vtk file 
 close(11)

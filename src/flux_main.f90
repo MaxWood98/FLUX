@@ -38,15 +38,15 @@ options%rhoinf = 1.225d0
 options%outflow_pratio = 0.8d0
 
 
-options%niter_max = 10
+options%niter_max = 20000
 options%cfl = 2.0d0 
 
 options%rk_niter = 4
 options%k2 = 0.05d0 
 options%k4 = 0.005d0
 
-options%num_threads = 1
-options%residual_convtol = -16.0 
+options%num_threads = 8
+options%residual_convtol = -8.0 
 
 
 
@@ -109,10 +109,10 @@ call flux_flow_initialise(mesh,options)
 
 
 
-!adjoint dev =====================
+! !adjoint dev =====================
 
-! !import solution
-! call read_flow_field('flowfield',mesh)
+!import solution
+call read_flow_field('flowfield',mesh)
 
 
 !adjoint solve 

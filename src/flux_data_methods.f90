@@ -62,6 +62,7 @@ type flux_mesh
     real(dp), dimension(:), allocatable :: rho,u,v,p,mach,e,cp
     real(dp), dimension(:), allocatable :: w1,w2,w3,w4,w10,w20,w30,w40,residual
     real(dp), dimension(:), allocatable :: l1,l2,l3,l4
+    real(dp), dimension(:), allocatable :: psi0,psi,psi_rho,psi_u,psi_v,psi_e,psi_dRdw_prd
     real(dp), dimension(:), allocatable :: edges_r1,edges_r2,edges_r3,edges_r4
     real(dp), dimension(:), allocatable :: edges_l1,edges_l2,edges_l3,edges_l4
     real(dp), dimension(:), allocatable :: edges_d1,edges_d2,edges_d3,edges_d4
@@ -75,13 +76,13 @@ type flux_mesh
         procedure :: get_cells_nadj
 end type flux_mesh
 
-!csr matrix type 
-type csr_matrix
+!csc matrix type 
+type csc_matrix
     integer(in32) :: nnz,nrow,ncol 
     integer(in32), dimension(:), allocatable :: row,column
-    integer(in32), dimension(:), allocatable :: row_pointer
+    integer(in32), dimension(:), allocatable :: col_pointer
     real(dp), dimension(:), allocatable :: value
-end type csr_matrix
+end type csc_matrix
 
 !routines 
 contains 

@@ -151,7 +151,6 @@ do iteration=1,options%niter_max
 
     !display 
     print *, 'iter = ',iteration,' rho_res = ', rhores
-
     !$OMP end single
 
 end do 

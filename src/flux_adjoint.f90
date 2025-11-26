@@ -203,7 +203,7 @@ real(dp) :: w10(mesh%ncell),w20(mesh%ncell),w30(mesh%ncell),w40(mesh%ncell)
 real(dp) :: r10(mesh%ncell),r20(mesh%ncell),r30(mesh%ncell),r40(mesh%ncell)
 real(dp) :: pr1(mesh%ncell),pr2(mesh%ncell),pr3(mesh%ncell),pr4(mesh%ncell)
 
-h = 1e-4_dp 
+h = 1e-8_dp 
 
 mesh%edges_d1(:) = 0.0d0 
 mesh%edges_d2(:) = 0.0d0 
@@ -360,19 +360,19 @@ implicit none
 !variables - inout
 type(flux_mesh) :: mesh 
 type(flux_options) :: options 
-type(csr_matrix) :: dRdW
+type(csc_matrix) :: dRdW
 
 !variables - local 
 integer(in32) :: clr,cc,vv,ee,rr,aa
-integer(in32) :: ncolour,b0,r0,row_offset,row,col,cadj,nblock
-integer(in32) :: row_offset_index(4*mesh%ncell)
+integer(in32) :: ncolour,b0,r0,col_offset,row,col,cadj,nblock
+integer(in32) :: column_offset_index
 
 real(dp) :: r1,r2,r3,r4,h
 real(dp) :: w10(mesh%ncell),w20(mesh%ncell),w30(mesh%ncell),w40(mesh%ncell)
 real(dp) :: r10(mesh%ncell),r20(mesh%ncell),r30(mesh%ncell),r40(mesh%ncell)
 real(dp) :: pr1(mesh%ncell),pr2(mesh%ncell),pr3(mesh%ncell),pr4(mesh%ncell)
 
-h = 1e-4_dp 
+h = 1e-8_dp 
 
 
 
@@ -425,14 +425,15 @@ dRdW%ncol = 4*mesh%ncell
 allocate(dRdW%row(dRdW%nnz))
 allocate(dRdW%column(dRdW%nnz))
 allocate(dRdW%value(dRdW%nnz))
-allocate(dRdW%row_pointer(4*mesh%ncell + 1))
+allocate(dRdW%col_pointer(4*mesh%ncell + 1))
 
 
-b0 = 0 
+dRdW%value(:) = 0.0d0 
+
 
 !evaluate the jacobian 
-nblock = (sum(mesh%cells_nadj) + mesh%ncell)*4
-row_offset_index(:) = 0
+dRdW%col_pointer(1) = 1
+nblock = (sum(mesh%cells_nadj) + mesh%ncell)*4 
 ncolour = maxval(mesh%cells_colour)
 do clr=1,ncolour
     write(*,'(A,I0,A,I0)') '    colour: ',clr,' / ',ncolour
@@ -478,42 +479,46 @@ do clr=1,ncolour
         !extract non zero values and populate the flow jacobian 
         do cc=1,mesh%ncell
             if (mesh%cells_colour(cc) == clr) then 
+                
+                !reset the column index offset
+                column_offset_index = 0 
 
-                print *, '------------------'
+                ! print *, '--------'
+
+                !get the location of the start of this column in the sparse structure
+                r0 = (sum(mesh%cells_nadj(1:cc-1)) + cc - 1)*4 + nblock*(vv - 1) + 1
+
 
                 !extract each residual for this cell
                 do rr=1,4
 
                     !get the start index of this row in the sparse jacobian
-                    r0 = (sum(mesh%cells_nadj(1:cc-1)) + cc - 1)*4 + nblock*(rr - 1) + 1
+                    ! r0 = (sum(mesh%cells_nadj(1:cc-1)) + cc - 1)*4 + nblock*(rr - 1) + 1
+
+                    ! if (cc == 1) then 
+                    !     print *, r0
+                    ! end if 
 
                     !get the row and column index of this entry 
                     row = cc + (rr - 1)*mesh%ncell
                     col = cc + (vv - 1)*mesh%ncell
                     
-                    print *, col 
-                    
-
-                    !get the row_offset of the entry for this cell in this row 
-                    row_offset = row_offset_index(row) 
-                    row_offset_index(row) = row_offset_index(row) + 1
-
-                    ! print *, r0 + row_offset,48480
+                    !get the col_offset of the entry for this cell in this column
+                    col_offset = column_offset_index
+                    column_offset_index = column_offset_index + 1
 
                     !insert the values
                     if (rr == 1) then 
-                        dRdW%value(r0 + row_offset) = (pr1(cc) - r10(cc))/h
+                        dRdW%value(r0 + col_offset) = (pr1(cc) - r10(cc))/h
                     elseif (rr == 2) then 
-                        dRdW%value(r0 + row_offset) = (pr2(cc) - r20(cc))/h
+                        dRdW%value(r0 + col_offset) = (pr2(cc) - r20(cc))/h
                     elseif (rr == 3) then 
-                        dRdW%value(r0 + row_offset) = (pr3(cc) - r30(cc))/h
+                        dRdW%value(r0 + col_offset) = (pr3(cc) - r30(cc))/h
                     elseif (rr == 4) then 
-                        dRdW%value(r0 + row_offset) = (pr4(cc) - r40(cc))/h
+                        dRdW%value(r0 + col_offset) = (pr4(cc) - r40(cc))/h
                     end if 
-                    dRdW%column(r0 + row_offset) = col
-                    dRdW%row(r0 + row_offset) = row
-                    b0 = b0 + 1
-
+                    dRdW%column(r0 + col_offset) = col
+                    dRdW%row(r0 + col_offset) = row
                 end do 
 
                 !extract each residual for this cells adjacent cells
@@ -531,192 +536,39 @@ do clr=1,ncolour
 
                     !extract each residual for this cell
                     do rr=1,4
-
-                        !get the start index of this row in the sparse jacobian
-                        r0 = (sum(mesh%cells_nadj(1:cadj-1)) + cadj - 1)*4 + nblock*(rr - 1) + 1
+                        
 
                         !get the row and column index of this entry 
                         row = cadj + (rr - 1)*mesh%ncell
                         col = cc + (vv - 1)*mesh%ncell
 
-                        print *, col 
-
-                        !get the row_offset of the entry for this cell in this row 
-                        row_offset = row_offset_index(row) 
-                        row_offset_index(row) = row_offset_index(row) + 1
-
-                        ! print *, r0,row_offset
+                        !get the col_offset of the entry for this cell in this column
+                        col_offset = column_offset_index
+                        column_offset_index = column_offset_index + 1
 
                         !insert the values
                         if (rr == 1) then 
-                            dRdW%value(r0 + row_offset) = (pr1(cadj) - r10(cadj))/h
+                            dRdW%value(r0 + col_offset) = (pr1(cadj) - r10(cadj))/h
                         elseif (rr == 2) then 
-                            dRdW%value(r0 + row_offset) = (pr2(cadj) - r20(cadj))/h
+                            dRdW%value(r0 + col_offset) = (pr2(cadj) - r20(cadj))/h
                         elseif (rr == 3) then 
-                            dRdW%value(r0 + row_offset) = (pr3(cadj) - r30(cadj))/h
+                            dRdW%value(r0 + col_offset) = (pr3(cadj) - r30(cadj))/h
                         elseif (rr == 4) then 
-                            dRdW%value(r0 + row_offset) = (pr4(cadj) - r40(cadj))/h
+                            dRdW%value(r0 + col_offset) = (pr4(cadj) - r40(cadj))/h
                         end if 
-                        dRdW%column(r0 + row_offset) = col
-                        dRdW%row(r0 + row_offset) = row
-                        b0 = b0 + 1
-
+                        dRdW%column(r0 + col_offset) = col
+                        dRdW%row(r0 + col_offset) = row
                     end do 
                 end do 
+                
+                !set the column end pointer 
+                dRdW%col_pointer(col+1) = r0 + col_offset + 1
             end if 
         end do 
-
-        ! !extract non zero values and populate the flow jacobian 
-        ! do cc=1,mesh%ncell
-        !     if (mesh%cells_colour(cc) == clr) then 
-
-        !         !get the block start index in the sparse jacobian 
-        !         b0 = (sum(mesh%cells_nadj(1:cc-1)) + cc - 1)*16 
-                
-        !         !extract each residual for this cell
-        !         do rr=1,4
-                
-        !             !get the index of the start of the row for this residual in the sparse jacobian 
-        !             r0 = b0 + (mesh%cells_nadj(cc) + 1)*4*(rr - 1)
-                    
-        !             !get the row and column index of this entry 
-        !             row = (cc - 1)*4 + rr
-        !             col = (cc - 1)*4 + vv 
-
-        !             !get the row_offset of the entry for this cell in this row 
-        !             row_offset = row_offset_index(row) 
-        !             row_offset_index(row) = row_offset_index(row) + 1
-                    
-        !             !insert the values
-        !             !goes in position r0 + row_offset
-        !             if (rr == 1) then 
-        !                 dRdW%value(r0 + row_offset) = abs(pr1(cc) - r10(cc))/h
-        !             elseif (rr == 2) then 
-        !                 dRdW%value(r0 + row_offset) = abs(pr2(cc) - r20(cc))/h
-        !             elseif (rr == 3) then 
-        !                 dRdW%value(r0 + row_offset) = abs(pr3(cc) - r30(cc))/h
-        !             elseif (rr == 4) then 
-        !                 dRdW%value(r0 + row_offset) = abs(pr4(cc) - r40(cc))/h
-        !             end if 
-        !             dRdW%column(r0 + row_offset) = col
-        !         end do 
-          
-
-        !         !extract each residual for this cells adjacent cells
-        !         do aa=1,mesh%cells(cc)%nedge
-
-        !             !get the adjacent cell 
-        !             if (mesh%edges(mesh%cells(cc)%edge(aa))%c1 .NE. cc) then 
-        !                 cadj = mesh%edges(mesh%cells(cc)%edge(aa))%c1 
-        !             else
-        !                 cadj = mesh%edges(mesh%cells(cc)%edge(aa))%c2 
-        !             end if 
-        !             if (cadj .LT. 0) then !skip if boundary condition 
-        !                 cycle 
-        !             end if 
-
-
-
-        !             !get the block start index in the sparse jacobian 
-        !             b0 = (sum(mesh%cells_nadj(1:cadj-1)) + cadj - 1)*16 
-                    
-        !             !extract each residual for this cell
-        !             do rr=1,4
-                    
-        !                 !get the index of the start of the row for this residual in the sparse jacobian 
-        !                 r0 = b0 + (mesh%cells_nadj(cadj) + 1)*4*(rr - 1)
-                        
-        !                 !get the row and column index of this entry 
-        !                 row = (cadj - 1)*4 + rr
-        !                 col = (cc - 1)*4 + vv
-
-        !                 !get the row_offset of the entry for this cell in this row 
-        !                 row_offset = row_offset_index(row) 
-        !                 row_offset_index(row) = row_offset_index(row) + 1
-                        
-        !                 !insert the values
-        !                 !goes in position r0 + row_offset
-        !                 if (rr == 1) then 
-        !                     dRdW%value(r0 + row_offset) = abs(pr1(cadj) - r10(cadj))/h
-        !                 elseif (rr == 2) then 
-        !                     dRdW%value(r0 + row_offset) = abs(pr2(cadj) - r20(cadj))/h
-        !                 elseif (rr == 3) then 
-        !                     dRdW%value(r0 + row_offset) = abs(pr3(cadj) - r30(cadj))/h
-        !                 elseif (rr == 4) then 
-        !                     dRdW%value(r0 + row_offset) = abs(pr4(cadj) - r40(cadj))/h
-        !                 end if 
-        !                 dRdW%column(r0 + row_offset) = col
-        !             end do 
-                    
-
-
-
-        !         end do 
-
-
-
-        !     end if
-        ! end do 
-
-
     end do 
 end do 
-
-
-
-
-
-!set the row end pointers
-row = 2
-dRdW%row_pointer(1) = 1
-do rr=1,4
-    do cc=1,mesh%ncell
-        dRdW%row_pointer(row) = (sum(mesh%cells_nadj(1:cc-1)) + cc - 1)*4 + nblock*(rr - 1)   + (mesh%cells_nadj(cc) + 1)*4
-        row = row + 1
-    end do 
-end do 
-
-
-! row = 1
-! do rr=1,4
-!     do cc=1,mesh%ncell
-!         print *, dRdW%row_pointer(row)
-!         row = row + 1
-!     end do 
-! end do 
-
-! do rr=1,dRdW%nrow+1
-!     print *, dRdW%row_pointer(rr)
-! end do 
-
-! print *,'nnz ', dRdW%nnz
-
-
-! !set the row end pointers
-! row = 2
-! dRdW%row_pointer(1) = 1
-! do cc=1,mesh%ncell
-
-!     b0 = (sum(mesh%cells_nadj(1:cc-1)) + cc - 1)*16 
-
-!     do rr=1,4
-
-!         r0 = b0 + (mesh%cells_nadj(cc) + 1)*4*(rr - 1)
-
-!         dRdW%row_pointer(row) = r0 + (mesh%cells_nadj(cc) + 1)*4
-!         row = row + 1
-!     end do 
-! end do 
-
-! do cc=1,4*mesh%ncell+1
-!     print *, dRdW%row_pointer(cc)
-! end do
-
-
 return 
 end subroutine build_flow_jacobian_sparse
-
-
 
 !flux adjoint solve ===============
 subroutine flux_adjoint_solve(mesh,options)
@@ -727,36 +579,21 @@ type(flux_mesh) :: mesh
 type(flux_options) :: options 
 
 !variables - local 
-integer(in32) :: iteration,rr,ii 
-real(dp) :: psi(4*mesh%ncell)
+logical :: nanflag,resconv
+integer(in32) :: iteration,rr,ii,cc,ee
+real(dp) :: psirhores
+real(dp) :: cell_timestep(4*mesh%ncell)
 real(dp), dimension(:), allocatable :: dJdW
 real(dp), dimension(:,:), allocatable :: dRdW
-type(csr_matrix) :: dRdW_sp
+type(csc_matrix) :: dRdW_sp
 
 
+!initialise flags
+resconv = .false.
+nanflag = .false.
 
-! real(dp) :: a(2,3),b(6)
-
-! a(1,1) = 1
-! a(1,2) = 2
-! a(1,3) = 3
-! a(2,1) = 4
-! a(2,2) = 5
-! a(2,3) = 6
-
-! b = reshape(a,(/6/))
-
-! print *, a(1,:)
-! print *, a(2,:)
-! print *, '----'
-! do rr=1,6
-!     print *, b(rr)
-! end do 
-! stop 
-
-
-
-
+!set the number of threads 
+call omp_set_num_threads(options%num_threads)
 
 !get the number of adjacent cells for each mesh cell
 call mesh%get_cells_nadj()
@@ -771,19 +608,19 @@ call colour_cells(mesh,options)
 if (options%cdisplay) then
     write(*,'(A)') '--> evaluating the flow jacobian'
 end if 
-
-call read_flow_field('flowfield',mesh)
-call build_flow_jacobian_full(mesh,options,dRdW)
-
-call read_flow_field('flowfield',mesh)
 call build_flow_jacobian_sparse(mesh,options,dRdW_sp)
 
 
 !validate sparse jacobian
 
+print *, 'data ',dRdW_sp%col_pointer(1:4)
+
+do cc=1,65
+    print *,cc,dRdW_sp%row(cc),dRdW_sp%column(cc)
+end do 
 
 
-
+stop 
 
 
 ! do rr=1,dRdW_sp%nrow
@@ -797,40 +634,125 @@ call build_flow_jacobian_sparse(mesh,options,dRdW_sp)
 !     end do
 ! end do 
 
-do ii=1,dRdW_sp%nnz
-    ! print *,dRdW_sp%row(ii),dRdW_sp%column(ii)
-    ! print *, dRdW(dRdW_sp%row(ii),dRdW_sp%column(ii)) - dRdW_sp%value(ii)
-    dRdW(dRdW_sp%row(ii),dRdW_sp%column(ii)) = 0.0d0 !dRdW(dRdW_sp%row(ii),dRdW_sp%column(ii)) - dRdW_sp%value(ii)
-end do
+! do ii=1,dRdW_sp%nnz
 
+!     ! print *,dRdW_sp%row(ii),dRdW_sp%column(ii)
+!     ! print *, dRdW(dRdW_sp%row(ii),dRdW_sp%column(ii)) - dRdW_sp%value(ii)
+!     dRdW(dRdW_sp%row(ii),dRdW_sp%column(ii)) = 0.0d0 !dRdW(dRdW_sp%row(ii),dRdW_sp%column(ii)) - dRdW_sp%value(ii)
+! end do
+
+! print *, '========================='
 ! do ii=1,mesh%ncell*4
 
-!     print *, dRdW(2,ii)
+!     print *, dRdW(ii,1)
 
 ! end do 
 
-print *, 'shape = ',shape(dRdW)
+! print *, 'shape = ',shape(dRdW)
 
-print *, 'dRdW error = ',sum(dRdW)
+! print *, 'dRdW error = ',sum(dRdW)
 
 
 !evaluate the flow objective jacobian 
+if (options%cdisplay) then
+    write(*,'(A)') '--> evaluating the objective gradient'
+end if 
+
 call read_flow_field('flowfield',mesh)
+
 call cd_objective(mesh,options,dJdW)
 
 print *, 'cd = ',mesh%cd
 
-!preprocess solve 
 
+
+
+!evalaute the adjoint timesteps for each cell
+if (options%cdisplay) then
+    write(*,'(A)') '--> evaluating cell adjoint timesteps'
+end if 
+do ee=1,mesh%nedge
+    call edge_spectral_radius(mesh,options,ee)
+end do 
+do cc=1,mesh%ncell
+    mesh%cells_specrad(cc) = 0.0d0 
+    do ee=1,mesh%cells(cc)%nedge
+        mesh%cells_specrad(cc) = mesh%cells_specrad(cc) + mesh%edges_specrad(mesh%cells(cc)%edge(ee))
+    end do
+    mesh%cells_dt(cc) = options%cfl*(mesh%cells_volume(cc)/mesh%cells_specrad(cc))
+end do 
+do cc=1,mesh%ncell
+    cell_timestep(cc) = (mesh%cells_dt(cc)/mesh%cells_volume(cc))
+    cell_timestep(cc + mesh%ncell) = cell_timestep(cc)
+    cell_timestep(cc + 2*mesh%ncell) = cell_timestep(cc)
+    cell_timestep(cc + 3*mesh%ncell) = cell_timestep(cc)
+end do 
+
+!display
+if (options%cdisplay) then
+    write(*,'(A)') '--> solving'
+end if 
+
+!initialise psi
+allocate(mesh%psi0(4*mesh%ncell))
+allocate(mesh%psi(4*mesh%ncell))
+allocate(mesh%psi_dRdw_prd(4*mesh%ncell))
+mesh%psi0 = 0.0d0 
+mesh%psi = 0.0d0 
+mesh%psi_dRdw_prd = 0.0d0 
+
+!initialise the parallel region 
+!$OMP parallel
 
 !solve 
-psi(:) = 0.0d0 
 do iteration=1,options%niter_max
 
+    !convergence cycle condition
+    if (resconv) then
+        cycle
+    end if
 
+    !nan value cycle condition 
+    if (nanflag) then 
+        cycle 
+    end if
 
+    !rk itterate
+    call rk_iterate_adj(dRdW_sp,dJdW,mesh,options,cell_timestep,nanflag)
 
+    !initiate single thread section
+    !$OMP single    
+
+    !check convergence
+    psirhores = log10(sqrt(sum((mesh%residual)**2)))
+    if (psirhores .LE. options%residual_convtol) then 
+        resconv = .true.
+    end if 
+
+    !display 
+    print *, 'iter = ',iteration,' psirho_res = ', psirhores
+
+    !end single thread section
+    !$OMP end single
 end do 
+
+!end the parallel region
+!$OMP end parallel 
+
+!extract the results to the mesh variables
+allocate(mesh%psi_rho(mesh%ncell))
+allocate(mesh%psi_u(mesh%ncell))
+allocate(mesh%psi_v(mesh%ncell))
+allocate(mesh%psi_e(mesh%ncell))
+mesh%psi_rho = mesh%psi(1:mesh%ncell)
+mesh%psi_u = mesh%psi(mesh%ncell+1:2*mesh%ncell)
+mesh%psi_v = mesh%psi(2*mesh%ncell+1:3*mesh%ncell)
+mesh%psi_e = mesh%psi(3*mesh%ncell+1:4*mesh%ncell)
+
+!evaluate the grid jacobian 
+
+
+!evaluate the total derivative
 
 
 
@@ -838,26 +760,73 @@ return
 end subroutine flux_adjoint_solve
 
 !rk iterate ===============
-subroutine rk_iterate_adj(psi,mesh,options,nanflag)
+subroutine rk_iterate_adj(dRdW_sp,dJdW,mesh,options,cell_timestep,nanflag)
 implicit none 
 
 !variables - inout
 logical :: nanflag
 type(flux_mesh) :: mesh 
 type(flux_options) :: options 
-real(dp) :: psi(mesh%ncell)
+type(csc_matrix) :: dRdW_sp
+real(dp) :: dJdW(4*mesh%ncell),cell_timestep(4*mesh%ncell)
 
 !variables - local
-integer(in32) :: rr 
+integer(in32) :: rr,cc
+
+!store the initial psi
+!$OMP single
+mesh%psi0 = mesh%psi 
+!$OMP end single
 
 !iterate
 do rr=1,options%rk_niter
 
+    !evaluate the residual 
+    call csc_vector_product(dRdW_sp,mesh%psi,mesh%psi_dRdw_prd)
 
+    !evaluate dissipation if enabled
 
+    !step each cell 
+    !$OMP do schedule(guided,50) 
+    !!$OMP single
+    do cc=1,4*mesh%ncell
+        mesh%psi(cc) = mesh%psi0(cc) - rk4_alpha(rr)*cell_timestep(cc)*(mesh%psi_dRdw_prd(cc) - dJdW(cc))
+        if (isnan(mesh%psi(cc))) then 
+            print *, 'cell nan: ',cc
+            nanflag = .true.
+        end if 
+    end do 
+    !$OMP end do 
 end do 
 
+!store the mesh residual
+!$OMP single
+mesh%residual = mesh%psi_dRdw_prd(1:mesh%ncell) - dJdW(1:mesh%ncell)
+!$OMP end single
 return 
 end subroutine rk_iterate_adj
+
+!csc vector product ===============
+subroutine csc_vector_product(matrix,vector,result)
+implicit none 
+
+!variables inout
+type(csc_matrix) :: matrix
+real(dp) :: vector(matrix%nrow),result(matrix%nrow)
+
+!variables local 
+integer(in32) :: ii,jj
+
+!evaluate
+!$OMP do schedule(guided,50) private(jj)
+do ii=1,matrix%ncol
+    result(ii) = 0.0d0 
+    do jj=matrix%col_pointer(ii),matrix%col_pointer(ii+1)-1
+        result(ii) = result(ii) + matrix%value(jj)*vector(matrix%row(jj))
+    end do 
+end do 
+!$OMP end do 
+return 
+end subroutine csc_vector_product
 
 end module flux_adjoint
