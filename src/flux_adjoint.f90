@@ -14,6 +14,104 @@ use flux_solve
 use flux_data_methods
 contains 
 
+!dCddW ===============
+subroutine cd_objective(mesh,options,dJdW)
+implicit none 
+
+!variables - inout
+type(flux_mesh) :: mesh 
+type(flux_options) :: options 
+real(dp), dimension(:), allocatable :: dJdW
+
+!variables - local 
+integer(in32) :: cc,ee 
+real(dp) :: gradc,gw1,gw2,gw3,gw4
+real(dp) :: dcxdp(mesh%ncell)
+
+
+!allocate the jacobian 
+allocate(dJdW(4*mesh%ncell))
+dJdW(:) = 0.0d0 
+
+!get pressure coefficient 
+do cc=1,mesh%ncell
+    call prim2con(mesh%rho(cc),mesh%u(cc),mesh%v(cc),mesh%p(cc),options%gamma,mesh%w1(cc),mesh%w2(cc),mesh%w3(cc),mesh%w4(cc))
+    mesh%cp(cc) = pressure_coefficient(mesh%p(cc),options)
+end do 
+
+!contribution from each surface edge (dcx/dcp)*(dcp/dp) = dcxdp
+mesh%cd = 0.0d0 
+dcxdp(:) = 0.0d0 
+do ee=1,mesh%nedge
+    if (mesh%edges(ee)%c2 == -1) then 
+
+        !accumulate cd
+        mesh%cd = mesh%cd + mesh%edges(ee)%dy*mesh%cp(mesh%edges(ee)%c1)
+
+        !accumulate dcxdp
+        gradc = mesh%edges(ee)%dy*(2.0d0/(options%gamma*options%pinf*options%machinf*options%machinf))
+        dcxdp(mesh%edges(ee)%c1) = dcxdp(mesh%edges(ee)%c1) + gradc
+    end if 
+end do 
+
+!evaluate the jacobian
+do cc=1,mesh%ncell
+
+    !evaluate the gradient of pressure wrt to each conservative variable
+    call get_dpdw(mesh,options,cc,gw1,gw2,gw3,gw4)
+
+    !populate dJdW
+    dJdW(cc) = dcxdp(cc)*gw1
+    dJdW(cc+mesh%ncell) = dcxdp(cc)*gw2
+    dJdW(cc+2*mesh%ncell) = dcxdp(cc)*gw3
+    dJdW(cc+3*mesh%ncell) = dcxdp(cc)*gw4
+end do 
+return 
+end subroutine cd_objective
+
+!get dpdw in cell c ===============
+subroutine get_dpdw(mesh,options,c,gw1,gw2,gw3,gw4)
+implicit none 
+
+!variables - inout
+integer(in32) :: c
+real(dp) :: gw1,gw2,gw3,gw4
+type(flux_mesh) :: mesh 
+type(flux_options) :: options 
+
+!variables - local 
+real(dp) :: w1,w2,w3,w4,h
+complex(dp) :: rhoc,uc,vc,pc,ec,gammac
+
+!set the complex step stepsize
+h = 1e-40_dp  
+
+!get complex gamma
+gammac = complex(options%gamma,0.0d0)
+
+!extract the conservative variables 
+w1 = mesh%w1(c)
+w2 = mesh%w2(c)
+w3 = mesh%w3(c)
+w4 = mesh%w4(c)
+
+!evaluate the gradients 
+call con2prim_cpx(rhoc,uc,vc,pc,ec,gammac,complex(w1,h),complex(w2,0.0d0),complex(w3,0.0d0),complex(w4,0.0d0))
+gw1 = aimag(pc)/h
+call con2prim_cpx(rhoc,uc,vc,pc,ec,gammac,complex(w1,0.0d0),complex(w2,h),complex(w3,0.0d0),complex(w4,0.0d0))
+gw2 = aimag(pc)/h
+call con2prim_cpx(rhoc,uc,vc,pc,ec,gammac,complex(w1,0.0d0),complex(w2,0.0d0),complex(w3,h),complex(w4,0.0d0))
+gw3 = aimag(pc)/h
+call con2prim_cpx(rhoc,uc,vc,pc,ec,gammac,complex(w1,0.0d0),complex(w2,0.0d0),complex(w3,0.0d0),complex(w4,h))
+gw4 = aimag(pc)/h
+
+!debug fd check --
+! call con2prim(rhop,up,vp,pp,ep,options%gamma,w10+1e-8,w20,w30,w40)
+! print *, (pp - mesh%p(c))/1e-8
+!debug fd check --
+return 
+end subroutine get_dpdw
+
 !colour cells ===============
 subroutine colour_cells(mesh,options)
 implicit none 
@@ -105,7 +203,7 @@ real(dp) :: w10(mesh%ncell),w20(mesh%ncell),w30(mesh%ncell),w40(mesh%ncell)
 real(dp) :: r10(mesh%ncell),r20(mesh%ncell),r30(mesh%ncell),r40(mesh%ncell)
 real(dp) :: pr1(mesh%ncell),pr2(mesh%ncell),pr3(mesh%ncell),pr4(mesh%ncell)
 
-h = 1e-8_dp 
+h = 1e-4_dp 
 
 mesh%edges_d1(:) = 0.0d0 
 mesh%edges_d2(:) = 0.0d0 
@@ -274,7 +372,7 @@ real(dp) :: w10(mesh%ncell),w20(mesh%ncell),w30(mesh%ncell),w40(mesh%ncell)
 real(dp) :: r10(mesh%ncell),r20(mesh%ncell),r30(mesh%ncell),r40(mesh%ncell)
 real(dp) :: pr1(mesh%ncell),pr2(mesh%ncell),pr3(mesh%ncell),pr4(mesh%ncell)
 
-h = 1e-8_dp 
+h = 1e-4_dp 
 
 
 
@@ -381,6 +479,7 @@ do clr=1,ncolour
         do cc=1,mesh%ncell
             if (mesh%cells_colour(cc) == clr) then 
 
+                print *, '------------------'
 
                 !extract each residual for this cell
                 do rr=1,4
@@ -391,7 +490,8 @@ do clr=1,ncolour
                     !get the row and column index of this entry 
                     row = cc + (rr - 1)*mesh%ncell
                     col = cc + (vv - 1)*mesh%ncell
-
+                    
+                    print *, col 
                     
 
                     !get the row_offset of the entry for this cell in this row 
@@ -438,6 +538,8 @@ do clr=1,ncolour
                         !get the row and column index of this entry 
                         row = cadj + (rr - 1)*mesh%ncell
                         col = cc + (vv - 1)*mesh%ncell
+
+                        print *, col 
 
                         !get the row_offset of the entry for this cell in this row 
                         row_offset = row_offset_index(row) 
@@ -561,27 +663,33 @@ do clr=1,ncolour
 end do 
 
 
-print *,'visited = ',b0
 
 
 
+!set the row end pointers
+row = 2
+dRdW%row_pointer(1) = 1
+do rr=1,4
+    do cc=1,mesh%ncell
+        dRdW%row_pointer(row) = (sum(mesh%cells_nadj(1:cc-1)) + cc - 1)*4 + nblock*(rr - 1)   + (mesh%cells_nadj(cc) + 1)*4
+        row = row + 1
+    end do 
+end do 
 
 
-! !set the row end pointers
-! row = 2
-! dRdW%row_pointer(1) = 1
+! row = 1
 ! do rr=1,4
 !     do cc=1,mesh%ncell
-!         ! r0 = (sum(mesh%cells_nadj(1:cc-1)) + cc - 1)*16*(rr - 1)  (sum(mesh%cells_nadj) + mesh%ncell)*16
-
-!         print *, 'rindex = ',(sum(mesh%cells_nadj(1:cc-1)) + cc - 1)*4 + nblock*(rr - 1)      + (mesh%cells_nadj(cc) + 1)*4
-
-!         ! print *, 'rindex = ',(sum(mesh%cells_nadj(1:cc-1)) + cc - 1)*16*(rr - 1) 
-
+!         print *, dRdW%row_pointer(row)
+!         row = row + 1
 !     end do 
 ! end do 
 
-print *, 'here'
+! do rr=1,dRdW%nrow+1
+!     print *, dRdW%row_pointer(rr)
+! end do 
+
+! print *,'nnz ', dRdW%nnz
 
 
 ! !set the row end pointers
@@ -619,10 +727,32 @@ type(flux_mesh) :: mesh
 type(flux_options) :: options 
 
 !variables - local 
-integer(in32) :: rr,ii 
+integer(in32) :: iteration,rr,ii 
+real(dp) :: psi(4*mesh%ncell)
+real(dp), dimension(:), allocatable :: dJdW
 real(dp), dimension(:,:), allocatable :: dRdW
 type(csr_matrix) :: dRdW_sp
 
+
+
+! real(dp) :: a(2,3),b(6)
+
+! a(1,1) = 1
+! a(1,2) = 2
+! a(1,3) = 3
+! a(2,1) = 4
+! a(2,2) = 5
+! a(2,3) = 6
+
+! b = reshape(a,(/6/))
+
+! print *, a(1,:)
+! print *, a(2,:)
+! print *, '----'
+! do rr=1,6
+!     print *, b(rr)
+! end do 
+! stop 
 
 
 
@@ -673,22 +803,61 @@ do ii=1,dRdW_sp%nnz
     dRdW(dRdW_sp%row(ii),dRdW_sp%column(ii)) = 0.0d0 !dRdW(dRdW_sp%row(ii),dRdW_sp%column(ii)) - dRdW_sp%value(ii)
 end do
 
-do ii=1,mesh%ncell*4
+! do ii=1,mesh%ncell*4
 
-    print *, dRdW(2,ii)
+!     print *, dRdW(2,ii)
 
-end do 
+! end do 
 
 print *, 'shape = ',shape(dRdW)
 
 print *, 'dRdW error = ',sum(dRdW)
 
 
+!evaluate the flow objective jacobian 
+call read_flow_field('flowfield',mesh)
+call cd_objective(mesh,options,dJdW)
+
+print *, 'cd = ',mesh%cd
+
+!preprocess solve 
+
+
+!solve 
+psi(:) = 0.0d0 
+do iteration=1,options%niter_max
+
+
+
+
+end do 
+
 
 
 return 
 end subroutine flux_adjoint_solve
 
+!rk iterate ===============
+subroutine rk_iterate_adj(psi,mesh,options,nanflag)
+implicit none 
 
+!variables - inout
+logical :: nanflag
+type(flux_mesh) :: mesh 
+type(flux_options) :: options 
+real(dp) :: psi(mesh%ncell)
+
+!variables - local
+integer(in32) :: rr 
+
+!iterate
+do rr=1,options%rk_niter
+
+
+
+end do 
+
+return 
+end subroutine rk_iterate_adj
 
 end module flux_adjoint

@@ -335,6 +335,24 @@ p = (e - 0.5d0*vel2)*(gamma - 1.0)*w1
 return 
 end subroutine con2prim
 
+!conservative to primative variables (complex) ===============
+subroutine con2prim_cpx(rho,u,v,p,e,gamma,w1,w2,w3,w4)
+implicit none 
 
+!variables - inout
+complex(dp) :: rho,u,v,p,e,gamma,w1,w2,w3,w4
+
+!variables - local 
+complex(dp) :: vel2
+
+!evaluate
+rho = w1
+u = w2/w1
+v = w3/w1
+e = w4/w1
+vel2 = u*u + v*v 
+p = (e - 0.5d0*vel2)*(gamma - 1.0)*w1
+return 
+end subroutine con2prim_cpx
 
 end module flux_data_methods

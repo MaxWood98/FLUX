@@ -38,7 +38,7 @@ options%rhoinf = 1.225d0
 options%outflow_pratio = 0.8d0
 
 
-options%niter_max = 15000
+options%niter_max = 10
 options%cfl = 2.0d0 
 
 options%rk_niter = 4
@@ -89,11 +89,11 @@ if (options%cdisplay) then
     minval(mesh%cells_volume),'}' 
 end if 
 
-! !initialise the flow 
-! if (options%cdisplay) then
-!     write(*,'(A)') '--> initialising'
-! end if 
-! call flux_flow_initialise(mesh,options)
+!initialise the flow 
+if (options%cdisplay) then
+    write(*,'(A)') '--> initialising'
+end if 
+call flux_flow_initialise(mesh,options)
 
 ! !solve 
 ! if (options%cdisplay) then
