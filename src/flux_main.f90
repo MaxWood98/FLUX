@@ -29,7 +29,7 @@ options%meshpath = 'grid_cell_naca'
 
 
 options%aoadeg = 0.0d0 
-options%machinf = 0.95d0 
+options%machinf = 1.95d0 
 options%gamma = 1.4d0 
 options%R = 287.058d0
 options%tinf = 288.0d0
@@ -45,7 +45,7 @@ options%rk_niter = 4
 options%k2 = 0.5d0 
 options%k4 = 0.1d0
 
-options%num_threads = 12
+options%num_threads = 8
 options%residual_convtol = -8.0 
 
 
@@ -68,7 +68,7 @@ if (options%cdisplay) then
     write(*,'(A)')'+--------------------------------------------+'
     write(*,'(A)')'|                   flux 2d                  |'
     write(*,'(A)')'|      2d unstructured euler flow solver     |'
-    write(*,'(A)')'|       Version 0.0.2 || 21/11/2025          |'
+    write(*,'(A)')'|       Version 0.0.2 || 27/11/2025          |'
     write(*,'(A)')'|                 Max Wood                   |'
     write(*,'(A)')'|           University of Bristol            |'
     write(*,'(A)')'|    Department of Aerospace Engineering     |'
