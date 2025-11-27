@@ -1,56 +1,64 @@
 !flux 2d adjoint module 
 !max wood
 !version : 0.0.1
-!updated : 21-11-25
-
+!updated : 27-11-25
 
 module flux_adjoint
-
-
 use flux_io
-
 use flux_solve
-
 use flux_data_methods
 contains 
 
 !dCddW ===============
-subroutine cd_objective(mesh,options,dJdW)
+subroutine cd_objective(mesh,options,dJdW,dJdX)
 implicit none 
 
 !variables - inout
 type(flux_mesh) :: mesh 
 type(flux_options) :: options 
-real(dp), dimension(:), allocatable :: dJdW
+real(dp), dimension(:), allocatable :: dJdW,dJdX
 
 !variables - local 
 integer(in32) :: cc,ee 
-real(dp) :: gradc,gw1,gw2,gw3,gw4
-real(dp) :: dcxdp(mesh%ncell)
+real(dp) :: gradc,gw1,gw2,gw3,gw4,wcos,wsin
+real(dp) :: dcddp(mesh%ncell)
 
-
-!allocate the jacobian 
+!allocate the jacobians
 allocate(dJdW(4*mesh%ncell))
+allocate(dJdX(2*mesh%nvertex))
 dJdW(:) = 0.0d0 
+dJdX(:) = 0.0d0 
 
-!get pressure coefficient 
+!get the pressure coefficient 
 do cc=1,mesh%ncell
     call prim2con(mesh%rho(cc),mesh%u(cc),mesh%v(cc),mesh%p(cc),options%gamma,mesh%w1(cc),mesh%w2(cc),mesh%w3(cc),mesh%w4(cc))
     mesh%cp(cc) = pressure_coefficient(mesh%p(cc),options)
 end do 
 
-!contribution from each surface edge (dcx/dcp)*(dcp/dp) = dcxdp
+!set incidence weightings
+wcos = cos(options%aoarad)
+wsin = sin(options%aoarad)
+
+!contribution from each surface edge (dcx/dcp)*(dcp/dp) = dcddp
 mesh%cd = 0.0d0 
-dcxdp(:) = 0.0d0 
+dcddp(:) = 0.0d0 
 do ee=1,mesh%nedge
     if (mesh%edges(ee)%c2 == -1) then 
 
         !accumulate cd
-        mesh%cd = mesh%cd + mesh%edges(ee)%dy*mesh%cp(mesh%edges(ee)%c1)
+        mesh%cd = mesh%cd + (wcos*mesh%edges(ee)%dy - wsin*mesh%edges(ee)%dx)*mesh%cp(mesh%edges(ee)%c1)
 
-        !accumulate dcxdp
-        gradc = mesh%edges(ee)%dy*(2.0d0/(options%gamma*options%pinf*options%machinf*options%machinf))
-        dcxdp(mesh%edges(ee)%c1) = dcxdp(mesh%edges(ee)%c1) + gradc
+        !accumulate dcddp
+        gradc = (wcos*mesh%edges(ee)%dy - wsin*mesh%edges(ee)%dx)*(2.0d0/(options%gamma*options%pinf*options%machinf*options%machinf))
+        dcddp(mesh%edges(ee)%c1) = dcddp(mesh%edges(ee)%c1) + gradc
+
+        !accumulate dJdX x (dcydx -> dcydy = 0)
+        dJdX(mesh%edges(ee)%v1) = dJdX(mesh%edges(ee)%v1) + wsin*mesh%cp(mesh%edges(ee)%c1)
+        dJdX(mesh%edges(ee)%v2) = dJdX(mesh%edges(ee)%v2) - wsin*mesh%cp(mesh%edges(ee)%c1) 
+
+        !accumulate dJdX y (dcxdy -> dcxdx = 0)
+        dJdX(mesh%edges(ee)%v1+mesh%nvertex) = dJdX(mesh%edges(ee)%v1+mesh%nvertex) - wcos*mesh%cp(mesh%edges(ee)%c1)
+        dJdX(mesh%edges(ee)%v2+mesh%nvertex) = dJdX(mesh%edges(ee)%v2+mesh%nvertex) + wcos*mesh%cp(mesh%edges(ee)%c1)
     end if 
 end do 
 
@@ -61,10 +69,10 @@ do cc=1,mesh%ncell
     call get_dpdw(mesh,options,cc,gw1,gw2,gw3,gw4)
 
     !populate dJdW
-    dJdW(cc) = dcxdp(cc)*gw1
-    dJdW(cc+mesh%ncell) = dcxdp(cc)*gw2
-    dJdW(cc+2*mesh%ncell) = dcxdp(cc)*gw3
-    dJdW(cc+3*mesh%ncell) = dcxdp(cc)*gw4
+    dJdW(cc) = dcddp(cc)*gw1
+    dJdW(cc+mesh%ncell) = dcddp(cc)*gw2
+    dJdW(cc+2*mesh%ncell) = dcddp(cc)*gw3
+    dJdW(cc+3*mesh%ncell) = dcddp(cc)*gw4
 end do 
 return 
 end subroutine cd_objective
@@ -179,10 +187,15 @@ end do
 
 !display
 if (options%cdisplay) then
-    write(*,'(A,I0,A,I0,A)') '    {colour min/max = ',minval(mesh%cells_colour),' / ',maxval(mesh%cells_colour),'}' 
+    write(*,'(A,I0,A,I0,A)') '    {cell colour min/max = ',minval(mesh%cells_colour),'/',maxval(mesh%cells_colour),'}' 
 end if 
 return 
 end subroutine colour_cells
+
+!colour vertices ===============
+
+
+
 
 !full flow jacobian ===============
 subroutine build_flow_jacobian_full(mesh,options,dRdW)
@@ -203,7 +216,7 @@ real(dp) :: w10(mesh%ncell),w20(mesh%ncell),w30(mesh%ncell),w40(mesh%ncell)
 real(dp) :: r10(mesh%ncell),r20(mesh%ncell),r30(mesh%ncell),r40(mesh%ncell)
 real(dp) :: pr1(mesh%ncell),pr2(mesh%ncell),pr3(mesh%ncell),pr4(mesh%ncell)
 
-h = 1e-4_dp 
+h = 1e-8_dp 
 
 mesh%edges_d1(:) = 0.0d0 
 mesh%edges_d2(:) = 0.0d0 
@@ -246,7 +259,7 @@ dRdW = 0.0d0
 
 !construct the jacobian 
 do cc=1,mesh%ncell !perturb each cell
-    write(*,'(A,I0,A,I0)') 'cell: ',cc,' / ',mesh%ncell
+    write(*,'(A,I0,A,I0)') 'cell: ',cc,'/',mesh%ncell
     do vv=1,4 !perturb each conservative variable in this cell
 
         !update to complex step ==========================
@@ -321,7 +334,7 @@ real(dp) :: pr1(mesh%ncell),pr2(mesh%ncell),pr3(mesh%ncell),pr4(mesh%ncell)
 
 
 
-h = 1e-4_dp 
+h = 1e-6_dp 
 
 
 
@@ -385,7 +398,7 @@ dRdW%col_pointer(1) = 1
 nblock = (sum(mesh%cells_nadj) + mesh%ncell)*4 
 ncolour = maxval(mesh%cells_colour)
 do clr=1,ncolour
-    write(*,'(A,I0,A,I0)') '    colour: ',clr,' / ',ncolour
+    write(*,'(A,I0,A,I0)') '    colour: ',clr,'/',ncolour
     do vv=1,4 !perturb each conservative variable in all cells of this colour
 
 
@@ -518,6 +531,72 @@ end do
 return 
 end subroutine build_flow_jacobian_sparse
 
+!sparse grid jacobian ===============
+subroutine build_grid_jacobian_sparse(mesh,options,dRdW)
+implicit none
+
+!variables - inout
+type(flux_mesh) :: mesh 
+type(flux_options) :: options 
+type(csc_matrix) :: dRdW
+
+!variables - local 
+integer(in32) :: clr,cc,vv,ee,rr,aa
+integer(in32) :: ncolour,r0,col_offset,row,col,cadj,nblock
+integer(in32) :: column_offset_index
+
+real(dp) :: r1,r2,r3,r4,h
+real(dp) :: w10(mesh%ncell),w20(mesh%ncell),w30(mesh%ncell),w40(mesh%ncell)
+real(dp) :: r10(mesh%ncell),r20(mesh%ncell),r30(mesh%ncell),r40(mesh%ncell)
+real(dp) :: pr1(mesh%ncell),pr2(mesh%ncell),pr3(mesh%ncell),pr4(mesh%ncell)
+
+
+
+h = 1e-8_dp 
+
+
+
+mesh%edges_d1(:) = 0.0d0 
+mesh%edges_d2(:) = 0.0d0 
+mesh%edges_d3(:) = 0.0d0 
+mesh%edges_d4(:) = 0.0d0 
+do cc=1,mesh%ncell
+    call prim2con(mesh%rho(cc),mesh%u(cc),mesh%v(cc),mesh%p(cc),options%gamma,mesh%w1(cc),mesh%w2(cc),mesh%w3(cc),mesh%w4(cc))
+end do 
+w10 = mesh%w1 
+w20 = mesh%w2 
+w30 = mesh%w3 
+w40 = mesh%w4 
+
+
+call get_edge_fluxes(mesh,options,.False.)
+do cc=1,mesh%ncell
+    r1 = 0.0d0 
+    r2 = 0.0d0 
+    r3 = 0.0d0 
+    r4 = 0.0d0 
+    do ee=1,mesh%cells(cc)%nedge
+        r1 = r1 + (mesh%edges_r1(mesh%cells(cc)%edge(ee)) + mesh%edges_d1(mesh%cells(cc)%edge(ee)))*mesh%cells(cc)%edge_sign(ee)
+        r2 = r2 + (mesh%edges_r2(mesh%cells(cc)%edge(ee)) + mesh%edges_d2(mesh%cells(cc)%edge(ee)))*mesh%cells(cc)%edge_sign(ee)
+        r3 = r3 + (mesh%edges_r3(mesh%cells(cc)%edge(ee)) + mesh%edges_d3(mesh%cells(cc)%edge(ee)))*mesh%cells(cc)%edge_sign(ee)
+        r4 = r4 + (mesh%edges_r4(mesh%cells(cc)%edge(ee)) + mesh%edges_d4(mesh%cells(cc)%edge(ee)))*mesh%cells(cc)%edge_sign(ee)
+    end do 
+    r10(cc) = r1
+    r20(cc) = r2
+    r30(cc) = r3
+    r40(cc) = r4
+end do 
+
+
+
+
+return 
+end subroutine build_grid_jacobian_sparse
+
+
+
+
+
 !flux adjoint solve ===============
 subroutine flux_adjoint_solve(mesh,options)
 implicit none 
@@ -531,7 +610,7 @@ logical :: nanflag,resconv
 integer(in32) :: iteration,cc,ee
 real(dp) :: psirhores
 real(dp) :: cell_timestep(4*mesh%ncell)
-real(dp), dimension(:), allocatable :: dJdW
+real(dp), dimension(:), allocatable :: dJdW,dJdX
 type(csc_matrix) :: dRdW_sp
 
 !initialise flags
@@ -546,9 +625,15 @@ call mesh%get_cells_nadj()
 
 !colour the cells
 if (options%cdisplay) then
-    write(*,'(A)') '--> colouring mesh'
+    write(*,'(A)') '--> colouring cells'
 end if 
 call colour_cells(mesh,options)
+
+!colour the vertices
+if (options%cdisplay) then
+    write(*,'(A)') '--> colouring vertices'
+end if 
+
 
 !evaluate the flow jacobian 
 if (options%cdisplay) then
@@ -602,7 +687,7 @@ end if
 
 call read_flow_field('flowfield',mesh)
 
-call cd_objective(mesh,options,dJdW)
+call cd_objective(mesh,options,dJdW,dJdX)
 
 print *, 'cd = ',mesh%cd
 
@@ -695,6 +780,8 @@ mesh%psi_e = mesh%psi(3*mesh%ncell+1:4*mesh%ncell)
 
 
 !evaluate the total derivative
+
+
 
 
 

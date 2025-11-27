@@ -24,12 +24,12 @@ options%cdisplay = .true.
 ! options%meshpath = 'test_meshes/kh0p1'
 ! options%meshpath = 'test_meshes/cv8x8op'
 ! options%meshpath = 'test_meshes/cv8x8rnd'
-options%meshpath = 'grid_cell_naca'
+options%meshpath = 'grid_cell_kh'
 
 
 
 options%aoadeg = 0.0d0 
-options%machinf = 1.95d0 
+options%machinf = 0.8d0 
 options%gamma = 1.4d0 
 options%R = 287.058d0
 options%tinf = 288.0d0
