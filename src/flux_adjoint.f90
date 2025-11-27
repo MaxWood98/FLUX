@@ -195,15 +195,15 @@ type(flux_options) :: options
 real(dp), dimension(:,:), allocatable :: dRdW
 
 !variables - local 
-integer(in32) :: ii,cc,vv,ee,cc2,aa,rr
-integer(in32) :: cidx,ridx,cadj,row,col
+integer(in32) :: cc,vv,ee,cc2
+integer(in32) :: cidx
 
 real(dp) :: r1,r2,r3,r4,h
 real(dp) :: w10(mesh%ncell),w20(mesh%ncell),w30(mesh%ncell),w40(mesh%ncell)
 real(dp) :: r10(mesh%ncell),r20(mesh%ncell),r30(mesh%ncell),r40(mesh%ncell)
 real(dp) :: pr1(mesh%ncell),pr2(mesh%ncell),pr3(mesh%ncell),pr4(mesh%ncell)
 
-h = 1e-8_dp 
+h = 1e-4_dp 
 
 mesh%edges_d1(:) = 0.0d0 
 mesh%edges_d2(:) = 0.0d0 
@@ -249,6 +249,7 @@ do cc=1,mesh%ncell !perturb each cell
     write(*,'(A,I0,A,I0)') 'cell: ',cc,' / ',mesh%ncell
     do vv=1,4 !perturb each conservative variable in this cell
 
+        !update to complex step ==========================
         !perturb the conservative variable w_vv in cell cc
         mesh%w1 = w10 
         mesh%w2 = w20 
@@ -282,74 +283,20 @@ do cc=1,mesh%ncell !perturb each cell
                 pr4(cc2) = pr4(cc2) + (mesh%edges_r4(mesh%cells(cc2)%edge(ee)) + mesh%edges_d4(mesh%cells(cc2)%edge(ee)))*mesh%cells(cc2)%edge_sign(ee)
             end do 
         end do 
+        !update to complex step ==========================
 
 
-
-        !-> results in dR_vv by dw_vv in cell cc for all other cells
-        !   this is a full column of dRdW
-        !   column index = (cc - 1)*4 + vv
         
         !set the column index
-        cidx = (vv - 1)*mesh%ncell + cc
+        cidx = cc + (vv - 1)*mesh%ncell
 
         !unpack residuals 
         dRdW(1:mesh%ncell,cidx) = (pr1(:) - r10(:))/h
-
         dRdW(mesh%ncell+1:2*mesh%ncell,cidx) = (pr2(:) - r20(:))/h
-
         dRdW(2*mesh%ncell+1:3*mesh%ncell,cidx) = (pr3(:) - r30(:))/h
-
         dRdW(3*mesh%ncell+1:4*mesh%ncell,cidx) = (pr4(:) - r40(:))/h
-
-        ! ridx = 1 
-        ! do ii=1,mesh%ncell
-        !     dRdW(ridx,cidx) = abs(pr1(ii) - r10(ii))/h
-        !     dRdW(ridx+1,cidx) = abs(pr2(ii) - r20(ii))/h
-        !     dRdW(ridx+2,cidx) = abs(pr3(ii) - r30(ii))/h
-        !     dRdW(ridx+3,cidx) = abs(pr4(ii) - r40(ii))/h
-        !     ridx = ridx + 4
-        ! end do 
-
     end do
 end do 
-
-! ridx = 1
-! do rr=1,4
-!     do vv=1,4
-!         do cc=1,mesh%ncell
-
-!             row = cc + (rr - 1)*mesh%ncell
-!             col = cc + (vv - 1)*mesh%ncell
-!             dRdW(row,col) = 1
-
-!             print *, dRdW(row,col) 
-
-!             do aa=1,mesh%cells(cc)%nedge
-
-!                 !get the adjacent cell 
-!                 if (mesh%edges(mesh%cells(cc)%edge(aa))%c1 .NE. cc) then 
-!                     cadj = mesh%edges(mesh%cells(cc)%edge(aa))%c1 
-!                 else
-!                     cadj = mesh%edges(mesh%cells(cc)%edge(aa))%c2 
-!                 end if 
-!                 if (cadj .LT. 0) then !skip if boundary condition 
-!                     cycle 
-!                 end if 
-
-!                 row = cadj + (rr - 1)*mesh%ncell
-!                 col = cc + (vv - 1)*mesh%ncell
-!                 dRdW(row,col) = 1
-                
-!                 !  print *, dRdW(row,col) 
-
-
-!             end do
-!         end do 
-!     end do 
-! end do 
-
-! print *, dRdW
-
 return
 end subroutine build_flow_jacobian_full
 
@@ -364,7 +311,7 @@ type(csc_matrix) :: dRdW
 
 !variables - local 
 integer(in32) :: clr,cc,vv,ee,rr,aa
-integer(in32) :: ncolour,b0,r0,col_offset,row,col,cadj,nblock
+integer(in32) :: ncolour,r0,col_offset,row,col,cadj,nblock
 integer(in32) :: column_offset_index
 
 real(dp) :: r1,r2,r3,r4,h
@@ -372,7 +319,9 @@ real(dp) :: w10(mesh%ncell),w20(mesh%ncell),w30(mesh%ncell),w40(mesh%ncell)
 real(dp) :: r10(mesh%ncell),r20(mesh%ncell),r30(mesh%ncell),r40(mesh%ncell)
 real(dp) :: pr1(mesh%ncell),pr2(mesh%ncell),pr3(mesh%ncell),pr4(mesh%ncell)
 
-h = 1e-8_dp 
+
+
+h = 1e-4_dp 
 
 
 
@@ -426,10 +375,10 @@ allocate(dRdW%row(dRdW%nnz))
 allocate(dRdW%column(dRdW%nnz))
 allocate(dRdW%value(dRdW%nnz))
 allocate(dRdW%col_pointer(4*mesh%ncell + 1))
-
-
+dRdW%row(:) = 0
+dRdW%column(:) = 0
 dRdW%value(:) = 0.0d0 
-
+dRdW%col_pointer(:) = 0 
 
 !evaluate the jacobian 
 dRdW%col_pointer(1) = 1
@@ -438,6 +387,10 @@ ncolour = maxval(mesh%cells_colour)
 do clr=1,ncolour
     write(*,'(A,I0,A,I0)') '    colour: ',clr,' / ',ncolour
     do vv=1,4 !perturb each conservative variable in all cells of this colour
+
+
+
+        !update to complex step ==========================
 
         !perturb variables 
         mesh%w1 = w10 
@@ -476,32 +429,29 @@ do clr=1,ncolour
             end do 
         end do
 
-        !extract non zero values and populate the flow jacobian 
+        !update to complex step ==========================
+
+
+
+
+        !extract non-zero values and populate the flow jacobian 
         do cc=1,mesh%ncell
             if (mesh%cells_colour(cc) == clr) then 
                 
                 !reset the column index offset
                 column_offset_index = 0 
 
-                ! print *, '--------'
-
                 !get the location of the start of this column in the sparse structure
                 r0 = (sum(mesh%cells_nadj(1:cc-1)) + cc - 1)*4 + nblock*(vv - 1) + 1
 
+                !get the column corrsponding to this cell cc and this conservative variable vv
+                col = cc + (vv - 1)*mesh%ncell
 
                 !extract each residual for this cell
                 do rr=1,4
 
-                    !get the start index of this row in the sparse jacobian
-                    ! r0 = (sum(mesh%cells_nadj(1:cc-1)) + cc - 1)*4 + nblock*(rr - 1) + 1
-
-                    ! if (cc == 1) then 
-                    !     print *, r0
-                    ! end if 
-
-                    !get the row and column index of this entry 
+                    !get the row index of this entry 
                     row = cc + (rr - 1)*mesh%ncell
-                    col = cc + (vv - 1)*mesh%ncell
                     
                     !get the col_offset of the entry for this cell in this column
                     col_offset = column_offset_index
@@ -537,10 +487,8 @@ do clr=1,ncolour
                     !extract each residual for this cell
                     do rr=1,4
                         
-
-                        !get the row and column index of this entry 
+                        !get the row  index of this entry 
                         row = cadj + (rr - 1)*mesh%ncell
-                        col = cc + (vv - 1)*mesh%ncell
 
                         !get the col_offset of the entry for this cell in this column
                         col_offset = column_offset_index
@@ -580,13 +528,11 @@ type(flux_options) :: options
 
 !variables - local 
 logical :: nanflag,resconv
-integer(in32) :: iteration,rr,ii,cc,ee
+integer(in32) :: iteration,cc,ee
 real(dp) :: psirhores
 real(dp) :: cell_timestep(4*mesh%ncell)
 real(dp), dimension(:), allocatable :: dJdW
-real(dp), dimension(:,:), allocatable :: dRdW
 type(csc_matrix) :: dRdW_sp
-
 
 !initialise flags
 resconv = .false.
@@ -612,15 +558,11 @@ call build_flow_jacobian_sparse(mesh,options,dRdW_sp)
 
 
 !validate sparse jacobian
-
-print *, 'data ',dRdW_sp%col_pointer(1:4)
-
-do cc=1,65
-    print *,cc,dRdW_sp%row(cc),dRdW_sp%column(cc)
-end do 
-
-
-stop 
+! print *, 'data ',dRdW_sp%col_pointer(1:4)
+! do cc=1,65
+!     print *,cc,dRdW_sp%row(cc),dRdW_sp%column(cc)
+! end do 
+! stop 
 
 
 ! do rr=1,dRdW_sp%nrow
