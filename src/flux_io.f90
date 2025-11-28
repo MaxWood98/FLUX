@@ -319,6 +319,13 @@ end do
 
 
 
+write(11,'(A)') 'VECTORS vertex_derivative double' !vertex derivative 
+do ii=1,mesh%nvertex
+    write(11,'(E17.10,A,E17.10,A,E17.10)') mesh%vertex_derivative_x(ii),' ',mesh%vertex_derivative_y(ii),' ',0.0d0
+end do 
+
+
+
 !close vtk file 
 close(11)
 return 
