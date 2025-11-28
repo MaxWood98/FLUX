@@ -34,6 +34,8 @@ end type flux_options
 !vertex type
 type flux_vertex
     integer(in32) :: index
+    integer(in32) :: ncell
+    integer(in32), dimension(:), allocatable :: cells
     real(dp) :: coordinate(2)
 end type flux_vertex
 
@@ -56,7 +58,7 @@ end type flux_cell
 type flux_mesh
     integer(in32) :: nvertex,nedge,ncell 
     real(dp) :: cl,cd,cm,mflux_in,mflux_out
-    integer(in32), dimension(:), allocatable :: cells_colour,cells_nadj
+    integer(in32), dimension(:), allocatable :: vertices_colour,cells_colour,cells_nadj
     real(dp), dimension(:), allocatable :: cells_specrad,cells_volume,cells_dt,cells_psensor
     real(dp), dimension(:), allocatable :: edges_specrad
     real(dp), dimension(:), allocatable :: rho,u,v,p,mach,e,cp
@@ -67,6 +69,7 @@ type flux_mesh
     real(dp), dimension(:), allocatable :: edges_l1,edges_l2,edges_l3,edges_l4
     real(dp), dimension(:), allocatable :: edges_d1,edges_d2,edges_d3,edges_d4
     real(dp), dimension(:), allocatable :: edges_pn,edges_pd
+    real(dp), dimension(:), allocatable :: vertex_derivative_x,vertex_derivative_y
     type(flux_vertex), dimension(:), allocatable :: vertices
     type(flux_edge), dimension(:), allocatable :: edges
     type(flux_cell), dimension(:), allocatable :: cells 
@@ -74,13 +77,14 @@ type flux_mesh
         procedure :: get_edges_geometry
         procedure :: get_cells_volume
         procedure :: get_cells_nadj
+        procedure :: get_vertex_cells
 end type flux_mesh
 
 !csc matrix type 
 type csc_matrix
-    integer(in32) :: nnz,nrow,ncol 
-    integer(in32), dimension(:), allocatable :: row,column
-    integer(in32), dimension(:), allocatable :: col_pointer
+    integer(in64) :: nnz,nrow,ncol 
+    integer(in64), dimension(:), allocatable :: row,column
+    integer(in64), dimension(:), allocatable :: col_pointer
     real(dp), dimension(:), allocatable :: value
 end type csc_matrix
 
@@ -148,7 +152,7 @@ end do
 return 
 end subroutine get_cells_volume
 
-!evaluate cells number of adjacent cells
+!evaluate cells number of adjacent cells to each cell ===============
 subroutine get_cells_nadj(self)
 implicit none 
 
@@ -168,6 +172,44 @@ do ii=1,self%nedge
 end do 
 return 
 end subroutine get_cells_nadj
+
+!evaluate the cells each vertex is a member of ===============
+subroutine get_vertex_cells(self)
+implicit none 
+
+!variables - inout
+class(flux_mesh) :: self
+
+!variables - local
+integer(in32) :: ii,jj,vidx
+
+!count the cells on each vertex
+do ii=1,self%nvertex
+    self%vertices(ii)%ncell = 0 
+end do
+do ii=1,self%ncell
+    do jj=1,self%cells(ii)%nedge
+        vidx = self%cells(ii)%edgev1(jj)
+        self%vertices(vidx)%ncell = self%vertices(vidx)%ncell + 1
+    end do 
+end do
+do ii=1,self%nvertex
+    allocate(self%vertices(ii)%cells(self%vertices(ii)%ncell))
+end do 
+
+!accumulate to each vertex
+do ii=1,self%nvertex
+    self%vertices(ii)%ncell = 0 
+end do
+do ii=1,self%ncell
+    do jj=1,self%cells(ii)%nedge
+        vidx = self%cells(ii)%edgev1(jj)
+        self%vertices(vidx)%ncell = self%vertices(vidx)%ncell + 1
+        self%vertices(vidx)%cells(self%vertices(vidx)%ncell) = ii
+    end do 
+end do
+return 
+end subroutine get_vertex_cells
 
 !======================================================
 !general methods ======================================

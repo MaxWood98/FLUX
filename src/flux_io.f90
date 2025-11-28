@@ -66,6 +66,7 @@ do while (iostatus == 0)
         allocate(mesh%cells_colour(mesh%ncell))
         allocate(mesh%cells_nadj(mesh%ncell))
         
+        
 
         do ii=1,mesh%ncell
             read(11,*) cindex,nedge 
@@ -129,6 +130,9 @@ do while (iostatus == 0)
     if (rtemp(1:7) == 'nvertex') then 
         read(rtemp(11:len_trim(rtemp)),*) mesh%nvertex
         allocate(mesh%vertices(mesh%nvertex))
+
+        allocate(mesh%vertices_colour(mesh%nvertex))
+
         do ii=1,mesh%nvertex
             mesh%vertices(ii)%index = ii 
             read(11,*) mesh%vertices(ii)%coordinate
@@ -287,6 +291,18 @@ write(11,'(A)') 'SCALARS psi_e double' !psi_e
 write(11,'(A)') 'LOOKUP_TABLE default'
 do ii=1,mesh%ncell
     write(11,'(E17.10)') mesh%psi_e(ii)
+end do 
+
+
+
+
+!write vertex based data
+write(11,'(A,I0)') 'POINT_DATA ',mesh%nvertex
+
+write(11,'(A)') 'SCALARS vertex_colour integer' !vertex colour
+write(11,'(A)') 'LOOKUP_TABLE default'
+do ii=1,mesh%nvertex
+    write(11,'(I0)') mesh%vertices_colour(ii)
 end do 
 
 !close vtk file 
