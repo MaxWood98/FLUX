@@ -1041,12 +1041,12 @@ call csc_vector_product(dRdX_sp,mesh%psi,dtotal)
 !$OMP end parallel 
 dtotal = dtotal + dJdX
 
-
-
-
+!extract the total derivative
+allocate(mesh%vertex_derivative_x(mesh%nvertex))
+allocate(mesh%vertex_derivative_y(mesh%nvertex))
+mesh%vertex_derivative_x = dtotal(1:mesh%nvertex)
+mesh%vertex_derivative_y = dtotal(mesh%nvertex+1:2*mesh%nvertex)
 return 
 end subroutine flux_adjoint_solve
-
-
 
 end module flux_adjoint

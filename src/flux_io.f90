@@ -305,6 +305,20 @@ do ii=1,mesh%nvertex
     write(11,'(I0)') mesh%vertices_colour(ii)
 end do 
 
+write(11,'(A)') 'SCALARS vertex_derivative_x double' !vertex derivative x
+write(11,'(A)') 'LOOKUP_TABLE default'
+do ii=1,mesh%nvertex
+    write(11,'(E17.10)') mesh%vertex_derivative_x(ii)
+end do 
+
+write(11,'(A)') 'SCALARS vertex_derivative_y double' !vertex derivative y
+write(11,'(A)') 'LOOKUP_TABLE default'
+do ii=1,mesh%nvertex
+    write(11,'(E17.10)') mesh%vertex_derivative_y(ii)
+end do 
+
+
+
 !close vtk file 
 close(11)
 return 
