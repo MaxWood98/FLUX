@@ -24,12 +24,12 @@ options%cdisplay = .true.
 ! options%meshpath = 'test_meshes/kh0p1'
 ! options%meshpath = 'test_meshes/cv8x8op'
 ! options%meshpath = 'test_meshes/cv8x8rnd'
-options%meshpath = 'grid_cell_kh'
+options%meshpath = 'grid_cell_naca'
 
 
 
 options%aoadeg = 0.0d0 
-options%machinf = 0.75d0 
+options%machinf = 2.0d0 
 options%gamma = 1.4d0 
 options%R = 287.058d0
 options%tinf = 288.0d0
@@ -95,16 +95,16 @@ if (options%cdisplay) then
 end if 
 call flux_flow_initialise(mesh,options)
 
-!solve 
-if (options%cdisplay) then
-    write(*,'(A)') '--> solving'
-end if 
-call flux_flow_solve(mesh,options)
-print *, 'COMPLETE'
+! !solve 
+! if (options%cdisplay) then
+!     write(*,'(A)') '--> solving'
+! end if 
+! call flux_flow_solve(mesh,options)
+! print *, 'COMPLETE'
 
-!post-process 
-! call write_vtk(mesh,options,'flow.vtk')
-call write_flow_field('flowfield',mesh)
+! !post-process 
+! ! call write_vtk(mesh,options,'flow.vtk')
+! call write_flow_field('flowfield',mesh)
 
 
 !UPDATE INTEGER TO IN64 FOR ALL METHODS INDEXING INTO SPARSE JACOBIANS TO AVOID OVERFLOW ERRORS

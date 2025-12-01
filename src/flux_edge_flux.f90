@@ -77,6 +77,75 @@ end if
 return 
 end subroutine vanleer_flux
 
+!VanLeer flux (complex) ===============
+subroutine vanleer_flux_cpx(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,gamma,nx,ny,elen,fx1,fx2,fx3,fx4)
+implicit none 
+
+!variables - inout 
+complex(dp) :: rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,gamma,nx,ny,elen
+complex(dp) :: fx1,fx2,fx3,fx4
+
+!variables - local
+complex(dp) ::  ma,c1,c2,vn1,vn2,m1p,m2p,m1,m2
+complex(dp) :: f11,f21,f31,f41,f12,f22,f32,f42
+
+!get edge normal velocities
+vn1 = u1*nx + v1*ny 
+vn2 = u2*nx + v2*ny 
+
+!get the speed of sound in each cell 
+c1 = speed_of_sound_cpx(p1,rho1,gamma)
+c2 = speed_of_sound_cpx(p2,rho2,gamma)
+
+!get the machs in each cell
+m1 = vn1/c1
+m2 = vn2/c2
+if (abs(m1) .LE. 1.0d0) then 
+    m1p = 0.25d0*((m1 + 1.0d0)**2)
+else !m1 .LE. -1.0d0
+    m1p = 0.5d0*(m1 + abs(m1))
+end if 
+if (abs(m2) .LE. 1.0d0) then 
+    m2p = -0.25d0*((m2 - 1.0d0)**2)
+else !m1 .LE. -1.0d0
+    m2p = 0.5d0*(m2 - abs(m2))
+end if 
+ma = m1p + m2p
+
+!evaluate the edge flux
+if (real(ma,dp) .GE. 1.0d0) then 
+    fx1 = (rho1*vn1)*elen
+    fx2 = (rho1*u1*vn1 + nx*p1)*elen
+    fx3 = (rho1*v1*vn1 + ny*p1)*elen
+    fx4 = (rho1*vn1*e1 + vn1*p1)*elen
+elseif (real(ma,dp) .LE. -1.0d0) then 
+    fx1 = (rho2*vn2)*elen
+    fx2 = (rho2*u2*vn2 + nx*p2)*elen
+    fx3 = (rho2*v2*vn2 + ny*p2)*elen
+    fx4 = (rho2*vn2*e2 + vn2*p2)*elen
+else
+
+    !evaluate flux 1
+    f11 = 0.25d0*rho1*c1*(m1 + 1.0d0)**2
+    f21 = f11*((nx*(-vn1 + 2.0d0*c1)/gamma) + u1)
+    f31 = f11*((ny*(-vn1 + 2.0d0*c1)/gamma) + v1)
+    f41 = f11*((((gamma - 1.0d0)*vn1 + 2.0d0*c1)**2)/(2.0d0*(gamma*gamma - 1.0d0)) + 0.5d0*(u1*u1 + v1*v1 - vn1*vn1))
+
+    !evaluate flux 2
+    f12 = -0.25d0*rho2*c2*(m2 - 1.0d0)**2
+    f22 = f12*((nx*(-vn2 - 2.0d0*c2)/gamma) + u2)
+    f32 = f12*((ny*(-vn2 - 2.0d0*c2)/gamma) + v2)
+    f42 = f12*((((gamma - 1.0d0)*vn2 - 2.0d0*c2)**2)/(2.0d0*(gamma*gamma - 1.0d0)) + 0.5d0*(u2*u2 + v2*v2 - vn2*vn2))
+
+    !evaluate th edge flux
+    fx1 = (f11 + f12)*elen
+    fx2 = (f21 + f22)*elen
+    fx3 = (f31 + f32)*elen
+    fx4 = (f41 + f42)*elen
+end if 
+return 
+end subroutine vanleer_flux_cpx
+
 !AUSM flux ===============
 subroutine ausm_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,gamma,nx,ny,elen,fx1,fx2,fx3,fx4)
 implicit none 
@@ -267,6 +336,41 @@ fx4 = 0.5d0*(f4l + f4r)*elen
 return 
 end subroutine jameson_flux
 
+!Jameson flux (complex) ===============
+subroutine jameson_flux_cpx(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,nx,ny,elen,fx1,fx2,fx3,fx4)
+implicit none 
+
+!variables - inout 
+complex(dp) :: rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,nx,ny,elen
+complex(dp) :: fx1,fx2,fx3,fx4
+
+!variables - local 
+complex(dp) :: vn
+complex(dp) :: f1l,f2l,f3l,f4l
+complex(dp) :: f1r,f2r,f3r,f4r
+
+!flux left
+vn = u1*nx + v1*ny 
+f1l = rho1*vn 
+f2l = rho1*u1*vn + nx*p1
+f3l = rho1*v1*vn + ny*p1
+f4l = rho1*vn*e1 + vn*p1
+
+!flux right
+vn = u2*nx + v2*ny 
+f1r = rho2*vn 
+f2r = rho2*u2*vn + nx*p2
+f3r = rho2*v2*vn + ny*p2
+f4r = rho2*vn*e2 + vn*p2
+
+!edge flux
+fx1 = complex(0.5d0,0.0d0)*(f1l + f1r)*elen
+fx2 = complex(0.5d0,0.0d0)*(f2l + f2r)*elen
+fx3 = complex(0.5d0,0.0d0)*(f3l + f3r)*elen
+fx4 = complex(0.5d0,0.0d0)*(f4l + f4r)*elen
+return 
+end subroutine jameson_flux_cpx
+
 !farfield prescribed boundary condition (supersonic) ===============
 subroutine farfield_supersonic_bc_prescribed(rhob,ub,vb,pb,eb,mesh,c,options,inflow_outflow)
 implicit none 
@@ -294,6 +398,34 @@ end if
 eb = energy(pb,rhob,sqrt(ub*ub + vb*vb),options%gamma)
 return 
 end subroutine farfield_supersonic_bc_prescribed
+
+!farfield prescribed boundary condition (supersonic) (complex) ===============
+subroutine farfield_supersonic_bc_prescribed_cpx(rhob,ub,vb,pb,eb,mesh,c,options,inflow_outflow)
+implicit none 
+
+!variables - inout 
+integer(in32) :: c,inflow_outflow
+type(flux_mesh_cpx) :: mesh 
+type(flux_options) :: options 
+
+!variables - local 
+complex(dp) :: ub,vb,rhob,pb,eb
+
+!get boundary state
+if (inflow_outflow == 1) then !inflow
+    ub = complex(options%uinf,0.0d0)
+    vb = complex(options%vinf,0.0d0)
+    rhob = complex(options%rhoinf,0.0d0)
+    pb = complex(options%pinf,0.0d0)
+elseif (inflow_outflow == -1) then !outflow
+    ub = mesh%u(c)
+    vb = mesh%v(c)
+    rhob = mesh%rho(c)
+    pb = mesh%p(c)
+end if 
+eb = energy_cpx(pb,rhob,sqrt(ub*ub + vb*vb),complex(options%gamma,0.0d0))
+return 
+end subroutine farfield_supersonic_bc_prescribed_cpx
 
 !farfield characteristic boundary condition (subsonic) ===============
 subroutine farfield_subsonic_bc_characteristic(rhob,ub,vb,pb,eb,mesh,c,e,options,inflow_outflow)
@@ -372,6 +504,84 @@ pb = dpr + options%pinf
 eb = energy(pb,rhob,sqrt(ub*ub + vb*vb),options%gamma)
 return 
 end subroutine farfield_subsonic_bc_characteristic
+
+!farfield characteristic boundary condition (subsonic) (complex) ===============
+subroutine farfield_subsonic_bc_characteristic_cpx(rhob,ub,vb,pb,eb,mesh,c,e,options,inflow_outflow)
+implicit none 
+
+!variables - inout 
+integer(in32) :: e,c,inflow_outflow
+complex(dp) :: rhob,ub,vb,pb,eb
+type(flux_mesh_cpx) :: mesh 
+type(flux_options) :: options 
+
+!variables - local 
+complex(dp) :: a,du,dv,drho,dpr,c1,c2,c3,c4
+complex(dp) :: vel_in(2),vel_inf(2),vel_in_n(2),vel_inf_n(2),vel_b(2),vel_b_n(2)
+complex(dp) :: basis_bx(2),basis_by(2)
+complex(dp) :: Mb2a(2,2),Ma2b(2,2) 
+
+!get the local speed of sound 
+a = speed_of_sound_cpx(mesh%p(c),mesh%rho(c),complex(options%gamma,0.0d0))
+
+!get the local basis coordinate system wrt to the edge normal 
+if (inflow_outflow == 1) then !inflow
+    basis_bx(1) = -mesh%edges(e)%nx !nx
+    basis_bx(2) = -mesh%edges(e)%ny !ny
+elseif (inflow_outflow == -1) then !outflow
+    basis_bx(1) = mesh%edges(e)%nx !nx
+    basis_bx(2) = mesh%edges(e)%ny !ny
+end if 
+basis_by(1) = mesh%edges(e)%dx/mesh%edges(e)%length
+basis_by(2) = mesh%edges(e)%dy/mesh%edges(e)%length
+call get_basis_change_2d_cpx(Ma2b,Mb2a,basis_bx,basis_by)
+
+!translate the velocity to this basis 
+vel_in(1) = mesh%u(c)
+vel_in(2) = mesh%v(c)
+vel_inf(1) = options%uinf
+vel_inf(2) = options%vinf 
+vel_in_n = change_basis_cpx(Ma2b,vel_in)
+vel_inf_n = change_basis_cpx(Ma2b,vel_inf)
+
+!get the characteristic delta variables 
+du = vel_in_n(1) - vel_inf_n(1)
+dv = vel_in_n(2) - vel_inf_n(2)
+drho = mesh%rho(c) - options%rhoinf 
+dpr = mesh%p(c) - options%pinf 
+c1 = -a*a*drho + dpr 
+c2 = mesh%rho(c)*a*dv 
+c3 = mesh%rho(c)*a*du + dpr 
+c4 = -mesh%rho(c)*a*du + dpr  
+
+!apply the boundary condition 
+if (inflow_outflow == 1) then !inflow 
+    c1 = 0.0d0 
+    c2 = 0.0d0 
+    c3 = 0.0d0 
+elseif (inflow_outflow == -1) then !outflow 
+    c4 = 0.0d0 
+end if 
+
+!get the boundary deltas 
+drho = (-1.0d0/(a*a))*c1 + (1.0d0/(2.0d0*a*a))*c3 + (1.0d0/(2.0d0*a*a))*c4 
+du = (1.0d0/(2.0d0*mesh%rho(c)*a))*(c3 - c4)
+dv = (1.0d0/(mesh%rho(c)*a))*c2 
+dpr = 0.5d0*(c3 + c4)
+
+!evaluate the boundary velocity in the base coordinate system 
+vel_b_n(1) = vel_inf_n(1) + du 
+vel_b_n(2) = vel_inf_n(2) + dv
+vel_b = change_basis_cpx(Mb2a,vel_b_n)
+
+!evaluate the boundary state
+ub = vel_b(1)
+vb = vel_b(2)
+rhob = drho + options%rhoinf
+pb = dpr + options%pinf
+eb = energy_cpx(pb,rhob,sqrt(ub*ub + vb*vb),complex(options%gamma,0.0d0))
+return 
+end subroutine farfield_subsonic_bc_characteristic_cpx
 
 !stagnation inflow ===============
 subroutine subsonic_stagnation_inflow_bc(rhob,ub,vb,pb,eb,mesh,c,e,options)

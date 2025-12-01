@@ -31,28 +31,45 @@ type flux_options
     character(len=:), allocatable :: meshpath,meshname
 end type flux_options 
 
-!vertex type
+!vertex types
 type flux_vertex
     integer(in32) :: index
     integer(in32) :: ncell
     integer(in32), dimension(:), allocatable :: cells
     real(dp) :: coordinate(2)
 end type flux_vertex
+type flux_vertex_cpx
+    integer(in32) :: index
+    integer(in32) :: ncell
+    integer(in32), dimension(:), allocatable :: cells
+    complex(dp) :: coordinate(2)
+end type flux_vertex_cpx
 
-!edge type
+!edge types
 type flux_edge 
     integer(in32) :: index
     integer(in32) :: v1,v2,c1,c2
     real(dp) :: dx,dy,nx,ny,length
 end type flux_edge
+type flux_edge_cpx 
+    integer(in32) :: index
+    integer(in32) :: v1,v2,c1,c2
+    complex(dp) :: dx,dy,nx,ny,length
+end type flux_edge_cpx
 
-!cell type
+!cell types
 type flux_cell 
     integer(in32) :: index
     integer(in32) :: nedge
     integer(in32), dimension(:), allocatable :: edgev1,edgev2,edgec,edge
     real(dp), dimension(:), allocatable :: edge_sign
 end type flux_cell
+type flux_cell_cpx
+    integer(in32) :: index
+    integer(in32) :: nedge
+    integer(in32), dimension(:), allocatable :: edgev1,edgev2,edgec,edge
+    complex(dp), dimension(:), allocatable :: edge_sign
+end type flux_cell_cpx
 
 !mesh type 
 type flux_mesh
@@ -79,6 +96,32 @@ type flux_mesh
         procedure :: get_cells_nadj
         procedure :: get_vertex_cells
 end type flux_mesh
+
+!complex mesh type 
+type flux_mesh_cpx
+    integer(in32) :: nvertex,nedge,ncell 
+    complex(dp) :: cl,cd,cm,mflux_in,mflux_out
+    integer(in32), dimension(:), allocatable :: vertices_colour,cells_colour,cells_nadj
+    complex(dp), dimension(:), allocatable :: cells_specrad,cells_volume,cells_dt,cells_psensor
+    complex(dp), dimension(:), allocatable :: edges_specrad
+    complex(dp), dimension(:), allocatable :: rho,u,v,p,mach,e,cp
+    complex(dp), dimension(:), allocatable :: w1,w2,w3,w4,w10,w20,w30,w40,residual
+    complex(dp), dimension(:), allocatable :: l1,l2,l3,l4
+    complex(dp), dimension(:), allocatable :: psi0,psi,psi_rho,psi_u,psi_v,psi_e,psi_dRdw_prd
+    complex(dp), dimension(:), allocatable :: edges_r1,edges_r2,edges_r3,edges_r4
+    complex(dp), dimension(:), allocatable :: edges_l1,edges_l2,edges_l3,edges_l4
+    complex(dp), dimension(:), allocatable :: edges_d1,edges_d2,edges_d3,edges_d4
+    complex(dp), dimension(:), allocatable :: edges_pn,edges_pd
+    complex(dp), dimension(:), allocatable :: vertex_derivative_x,vertex_derivative_y
+    type(flux_vertex_cpx), dimension(:), allocatable :: vertices
+    type(flux_edge_cpx), dimension(:), allocatable :: edges
+    type(flux_cell_cpx), dimension(:), allocatable :: cells 
+    contains 
+        procedure :: get_edges_geometry_cpx
+    !     procedure :: get_cells_volume
+    !     procedure :: get_cells_nadj
+    !     procedure :: get_vertex_cells
+end type flux_mesh_cpx
 
 !csc matrix type 
 type csc_matrix
@@ -118,6 +161,30 @@ do ii=1,self%nedge
 end do 
 return 
 end subroutine get_edges_geometry
+
+!evaluate edges geometry (complex) ===============
+subroutine get_edges_geometry_cpx(self) 
+implicit none 
+
+!variables - inout
+class(flux_mesh_cpx) :: self 
+
+!variables - local
+integer(in32) :: ii 
+complex(dp) :: dx,dy 
+
+!evaluate 
+do ii=1,self%nedge
+    dx = self%vertices(self%edges(ii)%v2)%coordinate(1) - self%vertices(self%edges(ii)%v1)%coordinate(1)
+    dy = self%vertices(self%edges(ii)%v2)%coordinate(2) - self%vertices(self%edges(ii)%v1)%coordinate(2)
+    self%edges(ii)%length = sqrt(dx*dx + dy*dy)
+    self%edges(ii)%dx = dx 
+    self%edges(ii)%dy = dy 
+    self%edges(ii)%nx = dy/self%edges(ii)%length
+    self%edges(ii)%ny = -dx/self%edges(ii)%length
+end do 
+return 
+end subroutine get_edges_geometry_cpx
 
 !evaluate cell volumes ===============
 subroutine get_cells_volume(self)
@@ -242,6 +309,18 @@ c = sqrt(gamma*(p/rho))
 return 
 end function speed_of_sound
 
+!speed of sound (complex) ===============
+function speed_of_sound_cpx(p,rho,gamma) result(c)
+implicit none 
+
+!variables - inout 
+complex(dp) :: p,rho,gamma,c 
+
+!evaluate 
+c = sqrt(gamma*(p/rho))
+return 
+end function speed_of_sound_cpx
+
 !pressure coefficient ===============
 function pressure_coefficient(p,options) result(cp)
 implicit none 
@@ -266,6 +345,18 @@ real(dp) :: p,rho,vel,gamma,e
 e = (p/((gamma - 1.0d0)*rho)) + 0.5d0*vel*vel
 return 
 end function energy
+
+!energy (complex) ===============
+function energy_cpx(p,rho,vel,gamma) result(e)
+implicit none 
+
+!variables - inout 
+complex(dp) :: p,rho,vel,gamma,e 
+
+!evaluate 
+e = (p/((gamma - 1.0d0)*rho)) + 0.5d0*vel*vel
+return 
+end function energy_cpx
 
 !stagnation pressure ===============
 function stagnation_pressure(p,mach,gamma) result(p0)
@@ -317,6 +408,20 @@ vb(2) = Ma2b(2,1)*va(1) + Ma2b(2,2)*va(2)
 return 
 end function change_basis
 
+!change basis (complex) =========================
+function change_basis_cpx(Ma2b,va) result(vb)
+implicit none
+
+!variables - inout
+complex(dp) :: va(2),vb(2)
+complex(dp) :: Ma2b(2,2)
+
+!evaluate 
+vb(1) = Ma2b(1,1)*va(1) + Ma2b(1,2)*va(2)
+vb(2) = Ma2b(2,1)*va(1) + Ma2b(2,2)*va(2)
+return 
+end function change_basis_cpx
+
 !get change of basis matrices =========================
 subroutine get_basis_change_2d(Ma2b,Mb2a,bx,by)
 implicit none 
@@ -343,6 +448,32 @@ Ma2b(2,2) = Mb2a(1,1)*det
 return 
 end subroutine get_basis_change_2d
 
+!get change of basis matrices (complex) =========================
+subroutine get_basis_change_2d_cpx(Ma2b,Mb2a,bx,by)
+implicit none 
+
+!variables - inout
+complex(dp) :: bx(2),by(2)
+complex(dp) :: Ma2b(2,2),Mb2a(2,2)
+
+!variables - local 
+complex(dp) :: det 
+
+!get transform from b2a (assuming bx and by are represented as vectors in basis a)
+Mb2a(1,1) = bx(1)
+Mb2a(1,2) = by(1)
+Mb2a(2,1) = bx(2)
+Mb2a(2,2) = by(2)
+
+!get transform from a2b
+det = 1.0d0/(Mb2a(1,1)*Mb2a(2,2) - Mb2a(1,2)*Mb2a(2,1))
+Ma2b(1,1) = Mb2a(2,2)*det
+Ma2b(1,2) = -Mb2a(1,2)*det
+Ma2b(2,1) = -Mb2a(2,1)*det
+Ma2b(2,2) = Mb2a(1,1)*det
+return 
+end subroutine get_basis_change_2d_cpx
+
 !primative to conservative variables ===============
 subroutine prim2con(rho,u,v,p,gamma,w1,w2,w3,w4)
 implicit none 
@@ -357,6 +488,21 @@ w3 = rho*v
 w4 = rho*energy(p,rho,sqrt(u*u + v*v),gamma)
 return 
 end subroutine prim2con
+
+!primative to conservative variables (complex) ===============
+subroutine prim2con_cpx(rho,u,v,p,gamma,w1,w2,w3,w4)
+implicit none 
+
+!variables - inout
+complex(dp) :: rho,u,v,p,gamma,w1,w2,w3,w4
+
+!evaluate
+w1 = rho
+w2 = rho*u 
+w3 = rho*v  
+w4 = rho*energy_cpx(p,rho,sqrt(u*u + v*v),gamma)
+return 
+end subroutine prim2con_cpx
 
 !conservative to primative variables ===============
 subroutine con2prim(rho,u,v,p,e,gamma,w1,w2,w3,w4)

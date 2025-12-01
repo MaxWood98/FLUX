@@ -357,6 +357,123 @@ end do
 return 
 end subroutine get_edge_fluxes
 
+!get edge fluxes (complex) ===============
+subroutine get_edge_fluxes_cpx(mesh,options,dissipation)
+implicit none 
+
+!variables - inout
+logical :: dissipation
+type(flux_mesh_cpx) :: mesh 
+type(flux_options) :: options 
+
+!variables - local 
+integer(in32) :: ee,c1,c2
+complex(dp) :: velnorm,machnorm,gamma_cpx
+complex(dp) :: rho1,u1,v1,p1,e1,rho2,u2,v2,p2,e2,fx1,fx2,fx3,fx4
+
+!get complex gamma
+gamma_cpx = complex(options%gamma,0.0d0)
+
+!evaluate each edge flux 
+!$OMP do schedule(guided,50) 
+do ee=1,mesh%nedge
+    c1 = mesh%edges(ee)%c1
+    c2 = mesh%edges(ee)%c2
+    ! if (dissipation) then !dissipation components
+    !     call edge_pressure_sensor(mesh,ee) 
+    !     call edge_laplacian(mesh,ee)
+    ! end if 
+    if (c2 .GT. 0) then !internal cell
+        rho1 = mesh%rho(c1)
+        u1 = mesh%u(c1)
+        v1 = mesh%v(c1)
+        p1 = mesh%p(c1)
+        e1 = mesh%e(c1)
+        rho2 = mesh%rho(c2) 
+        u2 = mesh%u(c2)
+        v2 = mesh%v(c2)
+        p2 = mesh%p(c2)
+        e2 = mesh%e(c2)
+
+
+        call vanleer_flux_cpx(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,gamma_cpx,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+        ! call ausm_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,options%gamma,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+        ! call roe_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,options%gamma,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+        ! call jameson_flux_cpx(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+
+
+    elseif (c2 == -1) then !wall   
+        rho1 = 0.0
+        u1 = 0.0
+        v1 = 0.0
+        p1 = mesh%p(c1)
+        e1 = 0.0
+        rho2 = 0.0
+        u2 = 0.0
+        v2 = 0.0
+        p2 = mesh%p(c1)
+        e2 = 0.0
+        call jameson_flux_cpx(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+    elseif (c2 == -2) then !farfield
+        rho1 = mesh%rho(c1)
+        u1 = mesh%u(c1)
+        v1 = mesh%v(c1)
+        p1 = mesh%p(c1)
+        e1 = mesh%e(c1)
+        velnorm = mesh%u(c1)*mesh%edges(ee)%nx + mesh%v(c1)*mesh%edges(ee)%ny
+        machnorm = sqrt(velnorm**2)/speed_of_sound_cpx(mesh%p(c1),mesh%rho(c1),gamma_cpx)
+        if (real(machnorm,dp) .GE. 1.0) then !supersonic 
+            if (real(velnorm,dp) .LT. 0.0d0) then !inflow
+                call farfield_supersonic_bc_prescribed_cpx(rho2,u2,v2,p2,e2,mesh,c1,options,1)
+            else !outflow
+                call farfield_supersonic_bc_prescribed_cpx(rho2,u2,v2,p2,e2,mesh,c1,options,-1)
+            end if 
+        else !subsonic 
+            if (real(velnorm,dp) .LT. 0.0d0) then !inflow
+                call farfield_subsonic_bc_characteristic_cpx(rho2,u2,v2,p2,e2,mesh,c1,ee,options,1)
+            else !outflow
+                call farfield_subsonic_bc_characteristic_cpx(rho2,u2,v2,p2,e2,mesh,c1,ee,options,-1)
+            end if 
+        end if 
+        call jameson_flux_cpx(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+    ! elseif (c2 == -3) then !stagnation inflow
+    !     rho1 = mesh%rho(c1)
+    !     u1 = mesh%u(c1)
+    !     v1 = mesh%v(c1)
+    !     p1 = mesh%p(c1)
+    !     e1 = mesh%e(c1)
+    !     call subsonic_stagnation_inflow_bc(rho2,u2,v2,p2,e2,mesh,c1,ee,options)
+    !     call jameson_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4) 
+    ! elseif (c2 == -4) then !pressure outflow 
+    !     rho1 = mesh%rho(c1)
+    !     u1 = mesh%u(c1)
+    !     v1 = mesh%v(c1)
+    !     p1 = mesh%p(c1)
+    !     e1 = mesh%e(c1)
+    !     velnorm = mesh%u(c1)*mesh%edges(ee)%nx + mesh%v(c1)*mesh%edges(ee)%ny
+    !     machnorm = abs(velnorm)/speed_of_sound(mesh%p(c1),mesh%rho(c1),options%gamma)
+    !     if (machnorm .GE. 1.0) then !supersonic 
+    !         call farfield_supersonic_bc_prescribed(rho2,u2,v2,p2,e2,mesh,c1,options,-1)
+    !     else !subsonic 
+    !         call subsonic_pressure_outflow_bc_characteristic(rho2,u2,v2,p2,e2,mesh,c1,ee,options,options%outflow_pratio)
+    !     end if 
+    !     call jameson_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+    else 
+
+        !todo: add other boundary conditions here
+
+    end if 
+
+    !evaluate the residuals
+    mesh%edges_r1(ee) = fx1
+    mesh%edges_r2(ee) = fx2
+    mesh%edges_r3(ee) = fx3
+    mesh%edges_r4(ee) = fx4
+end do 
+!$OMP end do 
+return 
+end subroutine get_edge_fluxes_cpx
+
 !get edge dissipations ===============
 subroutine get_edge_dissipations(mesh,options)
 implicit none 
