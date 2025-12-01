@@ -1,7 +1,7 @@
 !flux 2d adjoint module 
 !max wood
-!version : 0.0.1
-!updated : 27-11-25
+!version : 0.0.2
+!updated : 01-12-25
 
 module flux_adjoint
 use flux_io
@@ -74,6 +74,11 @@ do cc=1,mesh%ncell
     dJdW(cc+2*mesh%ncell) = dcddp(cc)*gw3
     dJdW(cc+3*mesh%ncell) = dcddp(cc)*gw4
 end do 
+
+!display 
+if (options%cdisplay) then
+    write(*,'(A,f16.14,A)') '    {cd = ',mesh%cd,'}' 
+end if 
 return 
 end subroutine cd_objective
 
@@ -403,7 +408,7 @@ w40 = mesh_cpx%w4
 dRdW%nnz = (sum(mesh_cpx%cells_nadj) + mesh_cpx%ncell)*16 
 if (options%cdisplay) then
     write(*,'(A,I0,A)') '    {flow jacobian nnz = ',dRdW%nnz,'}'
-    write(*,'(A,F8.6,A)') '    {flow jacobian sparsity = ',(real(dRdW%nnz,dp)/real(16*mesh_cpx%ncell*mesh_cpx%ncell,dp))*100.0d0,'%}'
+    write(*,'(A,F8.6,A)') '    {flow jacobian sparsity = ',(real(dRdW%nnz,dp)/real(16_in64*mesh_cpx%ncell*mesh_cpx%ncell,dp))*100.0d0,'%}'
 end if 
 dRdW%nrow = 4*mesh_cpx%ncell
 dRdW%ncol = 4*mesh_cpx%ncell
@@ -551,7 +556,6 @@ do clr=1,ncolour
                 end if 
             end if  
         end do 
-
     end do 
 end do 
 
@@ -602,7 +606,7 @@ end do
 dRdX%nnz = sum(mesh_cpx%vertices%ncell)*8
 if (options%cdisplay) then
     write(*,'(A,I0,A)') '    {grid jacobian nnz = ',dRdX%nnz,'}'
-    write(*,'(A,F8.6,A)') '    {grid jacobian sparsity = ',(real(dRdX%nnz,dp)/real(8_in64*mesh_cpx%ncell*mesh_cpx%nvertex))*100.0d0,'%}'
+    write(*,'(A,F8.6,A)') '    {grid jacobian sparsity = ',(real(dRdX%nnz,dp)/real(8_in64*mesh_cpx%ncell*mesh_cpx%nvertex,dp))*100.0d0,'%}'
 end if 
 dRdX%nrow = 4*mesh_cpx%ncell
 dRdX%ncol = 2*mesh_cpx%nvertex
@@ -621,7 +625,7 @@ nblock = sum(mesh_cpx%vertices%ncell)*4
 ncolour = maxval(mesh_cpx%vertices_colour)
 do clr=1,ncolour
     write(*,'(A,I0,A,I0)') '    colour: ',clr,'/',ncolour
-    do vv=1,2 !perturb each coordinare at vertices of this colour
+    do vv=1,2 !perturb each coordinate at vertices of this colour
 
         !perturb variables 
         do cc=1,mesh_cpx%nvertex
@@ -975,58 +979,11 @@ if (options%cdisplay) then
 end if 
 call build_flow_jacobian_sparse(mesh_cpx,options,dRdW_sp)
 
-
-!validate sparse jacobian
-! print *, 'data ',dRdW_sp%col_pointer(1:4)
-! do cc=1,65
-!     print *,cc,dRdW_sp%row(cc),dRdW_sp%column(cc)
-! end do 
-! stop 
-
-
-! do rr=1,dRdW_sp%nrow
-!     do ii=dRdW_sp%row_pointer(rr),dRdW_sp%row_pointer(rr+1)
-
-!         ! print *, 'row = ',rr,' col = ',dRdW_sp%column(ii)
-!         dRdW(rr,dRdW_sp%column(ii)) = 0.0d0
-!         ! dRdW(rr,dRdW_sp%column(ii)) = dRdW(rr,dRdW_sp%column(ii)) - dRdW_sp%value(ii)
-!         ! dRdW(rr,:) = 0.0d0 
-!         ! print *, dRdW(rr,dRdW_sp%column(ii))
-!     end do
-! end do 
-
-! do ii=1,dRdW_sp%nnz
-
-!     ! print *,dRdW_sp%row(ii),dRdW_sp%column(ii)
-!     ! print *, dRdW(dRdW_sp%row(ii),dRdW_sp%column(ii)) - dRdW_sp%value(ii)
-!     dRdW(dRdW_sp%row(ii),dRdW_sp%column(ii)) = 0.0d0 !dRdW(dRdW_sp%row(ii),dRdW_sp%column(ii)) - dRdW_sp%value(ii)
-! end do
-
-! print *, '========================='
-! do ii=1,mesh%ncell*4
-
-!     print *, dRdW(ii,1)
-
-! end do 
-
-! print *, 'shape = ',shape(dRdW)
-
-! print *, 'dRdW error = ',sum(dRdW)
-
-
 !evaluate the flow objective jacobian 
 if (options%cdisplay) then
     write(*,'(A)') '--> evaluating the objective gradient'
 end if 
-
-call read_flow_field('flowfield',mesh)
-
 call cd_objective(mesh,options,dJdW,dJdX)
-
-print *, 'cd = ',mesh%cd
-
-
-
 
 !evalaute the adjoint timesteps for each cell
 if (options%cdisplay) then
@@ -1112,14 +1069,6 @@ mesh%psi_e = mesh%psi(3*mesh%ncell+1:4*mesh%ncell)
 
 !evaluate the grid jacobian 
 call build_grid_jacobian_sparse(mesh_cpx,options,dRdX_sp)
-
-
-! !validate sparse jacobian
-! print *, 'data ',dRdX_sp%col_pointer(1:4)
-! do cc=1,dRdX_sp%nnz
-!     print *,cc,dRdX_sp%row(cc),dRdX_sp%column(cc),dRdX_sp%value(cc)
-! end do 
-! stop 
 
 !evaluate the total derivative
 allocate(dtotal(2*mesh%nvertex))

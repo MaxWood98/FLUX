@@ -24,7 +24,7 @@ options%cdisplay = .true.
 ! options%meshpath = 'test_meshes/kh0p1'
 ! options%meshpath = 'test_meshes/cv8x8op'
 ! options%meshpath = 'test_meshes/cv8x8rnd'
-options%meshpath = 'grid_cell_naca'
+options%meshpath = 'grid_cell_0p1_khopt'
 
 
 
@@ -42,8 +42,8 @@ options%niter_max = 10000
 options%cfl = 2.0
 
 options%rk_niter = 4
-options%k2 = 0.5d0 
-options%k4 = 0.1d0
+options%k2 = 0.005d0 
+options%k4 = 0.001d0
 
 options%num_threads = 8
 options%residual_convtol = -8.0 
@@ -54,7 +54,7 @@ options%residual_convtol = -8.0
 
 
 allocate(options%rk_dissipation(options%rk_niter))
-options%rk_dissipation(1) = .false.
+options%rk_dissipation(1) = .true.
 options%rk_dissipation(2) = .false.
 options%rk_dissipation(3) = .false.
 options%rk_dissipation(4) = .false.
@@ -95,16 +95,16 @@ if (options%cdisplay) then
 end if 
 call flux_flow_initialise(mesh,options)
 
-! !solve 
-! if (options%cdisplay) then
-!     write(*,'(A)') '--> solving'
-! end if 
-! call flux_flow_solve(mesh,options)
-! print *, 'COMPLETE'
+!solve 
+if (options%cdisplay) then
+    write(*,'(A)') '--> solving'
+end if 
+call flux_flow_solve(mesh,options)
+print *, 'COMPLETE'
 
-! !post-process 
-! ! call write_vtk(mesh,options,'flow.vtk')
-! call write_flow_field('flowfield',mesh)
+!post-process 
+! call write_vtk(mesh,options,'flow.vtk')
+call write_flow_field('flowfield',mesh)
 
 
 !UPDATE INTEGER TO IN64 FOR ALL METHODS INDEXING INTO SPARSE JACOBIANS TO AVOID OVERFLOW ERRORS
