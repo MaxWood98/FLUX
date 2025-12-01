@@ -117,7 +117,7 @@ type flux_mesh_cpx
     type(flux_edge_cpx), dimension(:), allocatable :: edges
     type(flux_cell_cpx), dimension(:), allocatable :: cells 
     contains 
-        procedure :: get_edges_geometry_cpx
+        procedure :: get_edges_geometry => get_edges_geometry_cpx
     !     procedure :: get_cells_volume
     !     procedure :: get_cells_nadj
     !     procedure :: get_vertex_cells

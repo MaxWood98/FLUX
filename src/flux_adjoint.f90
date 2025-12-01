@@ -567,11 +567,11 @@ return
 end subroutine build_flow_jacobian_sparse
 
 !sparse grid jacobian ===============
-subroutine build_grid_jacobian_sparse(mesh,options,dRdX)
+subroutine build_grid_jacobian_sparse(mesh_cpx,options,dRdX)
 implicit none
 
 !variables - inout
-type(flux_mesh) :: mesh 
+type(flux_mesh_cpx) :: mesh_cpx 
 type(flux_options) :: options 
 type(csc_matrix) :: dRdX
 
@@ -579,67 +579,37 @@ type(csc_matrix) :: dRdX
 integer(in32) :: clr,cc,vv,ee,rr,aa
 integer(in32) :: ncolour,r0,col_offset,row,col,cadj,nblock
 integer(in32) :: column_offset_index
+real(dp) :: h
+complex(dp) :: pr1c(mesh_cpx%ncell),pr2c(mesh_cpx%ncell),pr3c(mesh_cpx%ncell),pr4c(mesh_cpx%ncell)
+complex(dp) :: coordinatetes0_x(mesh_cpx%nvertex),coordinatetes0_y(mesh_cpx%nvertex)
 
-real(dp) :: r1,r2,r3,r4,h
-real(dp) :: w10(mesh%ncell),w20(mesh%ncell),w30(mesh%ncell),w40(mesh%ncell)
-real(dp) :: r10(mesh%ncell),r20(mesh%ncell),r30(mesh%ncell),r40(mesh%ncell)
-real(dp) :: pr1(mesh%ncell),pr2(mesh%ncell),pr3(mesh%ncell),pr4(mesh%ncell)
-real(dp) :: coordinates0(mesh%nvertex,2)
+!define the complex stepsize
+h = 1e-40_dp 
 
+!initialise dissipation
+mesh_cpx%edges_d1(:) = complex(0.0d0,0.0d0) 
+mesh_cpx%edges_d2(:) = complex(0.0d0,0.0d0) 
+mesh_cpx%edges_d3(:) = complex(0.0d0,0.0d0) 
+mesh_cpx%edges_d4(:) = complex(0.0d0,0.0d0) 
 
-h = 1e-6_dp 
-
-
-
-mesh%edges_d1(:) = 0.0d0 
-mesh%edges_d2(:) = 0.0d0 
-mesh%edges_d3(:) = 0.0d0 
-mesh%edges_d4(:) = 0.0d0 
-do cc=1,mesh%ncell
-    call prim2con(mesh%rho(cc),mesh%u(cc),mesh%v(cc),mesh%p(cc),options%gamma,mesh%w1(cc),mesh%w2(cc),mesh%w3(cc),mesh%w4(cc))
+!store the initial coordinates
+do cc=1,mesh_cpx%nvertex
+    coordinatetes0_x(cc) = mesh_cpx%vertices(cc)%coordinate(1)
+    coordinatetes0_y(cc) = mesh_cpx%vertices(cc)%coordinate(2)
 end do 
-w10 = mesh%w1 
-w20 = mesh%w2 
-w30 = mesh%w3 
-w40 = mesh%w4 
-
-
-call get_edge_fluxes(mesh,options,.False.)
-do cc=1,mesh%ncell
-    r1 = 0.0d0 
-    r2 = 0.0d0 
-    r3 = 0.0d0 
-    r4 = 0.0d0 
-    do ee=1,mesh%cells(cc)%nedge
-        r1 = r1 + (mesh%edges_r1(mesh%cells(cc)%edge(ee)) + mesh%edges_d1(mesh%cells(cc)%edge(ee)))*mesh%cells(cc)%edge_sign(ee)
-        r2 = r2 + (mesh%edges_r2(mesh%cells(cc)%edge(ee)) + mesh%edges_d2(mesh%cells(cc)%edge(ee)))*mesh%cells(cc)%edge_sign(ee)
-        r3 = r3 + (mesh%edges_r3(mesh%cells(cc)%edge(ee)) + mesh%edges_d3(mesh%cells(cc)%edge(ee)))*mesh%cells(cc)%edge_sign(ee)
-        r4 = r4 + (mesh%edges_r4(mesh%cells(cc)%edge(ee)) + mesh%edges_d4(mesh%cells(cc)%edge(ee)))*mesh%cells(cc)%edge_sign(ee)
-    end do 
-    r10(cc) = r1
-    r20(cc) = r2
-    r30(cc) = r3
-    r40(cc) = r4
-end do 
-
-do vv=1,mesh%nvertex
-    coordinates0(vv,:) = mesh%vertices(vv)%coordinate(:)
-end do 
-
-
 
 !allocate the sparse flow jacobian 
-dRdX%nnz = sum(mesh%vertices%ncell)*8
+dRdX%nnz = sum(mesh_cpx%vertices%ncell)*8
 if (options%cdisplay) then
     write(*,'(A,I0,A)') '    {grid jacobian nnz = ',dRdX%nnz,'}'
-    write(*,'(A,F8.6,A)') '    {grid jacobian sparsity = ',(real(dRdX%nnz,dp)/real(8_in64*mesh%ncell*mesh%nvertex))*100.0d0,'%}'
+    write(*,'(A,F8.6,A)') '    {grid jacobian sparsity = ',(real(dRdX%nnz,dp)/real(8_in64*mesh_cpx%ncell*mesh_cpx%nvertex))*100.0d0,'%}'
 end if 
-dRdX%nrow = 4*mesh%ncell
-dRdX%ncol = 2*mesh%nvertex
+dRdX%nrow = 4*mesh_cpx%ncell
+dRdX%ncol = 2*mesh_cpx%nvertex
 allocate(dRdX%row(dRdX%nnz))
 allocate(dRdX%column(dRdX%nnz))
 allocate(dRdX%value(dRdX%nnz))
-allocate(dRdX%col_pointer(2*mesh%nvertex + 1))
+allocate(dRdX%col_pointer(2*mesh_cpx%nvertex + 1))
 dRdX%row(:) = 0
 dRdX%column(:) = 0
 dRdX%value(:) = 0.0d0 
@@ -647,85 +617,65 @@ dRdX%col_pointer(:) = 0
  
 !evaluate the jacobian 
 dRdX%col_pointer(1) = 1
-nblock = sum(mesh%vertices%ncell)*4 
-ncolour = maxval(mesh%vertices_colour)
+nblock = sum(mesh_cpx%vertices%ncell)*4 
+ncolour = maxval(mesh_cpx%vertices_colour)
 do clr=1,ncolour
     write(*,'(A,I0,A,I0)') '    colour: ',clr,'/',ncolour
     do vv=1,2 !perturb each coordinare at vertices of this colour
 
-
-
-        !update to complex step ==========================
-
-        !perturb coordinates
-        do cc=1,mesh%nvertex
-            mesh%vertices(cc)%coordinate = coordinates0(cc,:)
-            if (mesh%vertices_colour(cc) == clr) then 
+        !perturb variables 
+        do cc=1,mesh_cpx%nvertex
+            if (mesh_cpx%vertices_colour(cc) == clr) then 
                 if (vv == 1) then 
-                    mesh%vertices(cc)%coordinate(1) = mesh%vertices(cc)%coordinate(1) + h
+                    mesh_cpx%vertices(cc)%coordinate(1) = mesh_cpx%vertices(cc)%coordinate(1) + complex(0.0d0,h)
                 elseif (vv == 2) then 
-                    mesh%vertices(cc)%coordinate(2) = mesh%vertices(cc)%coordinate(2) + h
+                    mesh_cpx%vertices(cc)%coordinate(2) = mesh_cpx%vertices(cc)%coordinate(2) + complex(0.0d0,h)
                 end if 
             end if  
         end do 
 
-
         !update edge geometries 
-        call mesh%get_edges_geometry()
+        call mesh_cpx%get_edges_geometry()
 
-        !set variables 
-        mesh%w1 = w10 
-        mesh%w2 = w20 
-        mesh%w3 = w30 
-        mesh%w4 = w40 
-        do cc=1,mesh%ncell
-            call con2prim(mesh%rho(cc),mesh%u(cc),mesh%v(cc),mesh%p(cc),mesh%e(cc),options%gamma,mesh%w1(cc),mesh%w2(cc),mesh%w3(cc),mesh%w4(cc))
-        end do 
-
-        !evaluate the flow residual
-        call get_edge_fluxes(mesh,options,.False.)
-        do cc=1,mesh%ncell
-            pr1(cc) = 0.0d0 
-            pr2(cc) = 0.0d0 
-            pr3(cc) = 0.0d0 
-            pr4(cc) = 0.0d0 
-            do ee=1,mesh%cells(cc)%nedge
-                pr1(cc) = pr1(cc) + (mesh%edges_r1(mesh%cells(cc)%edge(ee)) + mesh%edges_d1(mesh%cells(cc)%edge(ee)))*mesh%cells(cc)%edge_sign(ee)
-                pr2(cc) = pr2(cc) + (mesh%edges_r2(mesh%cells(cc)%edge(ee)) + mesh%edges_d2(mesh%cells(cc)%edge(ee)))*mesh%cells(cc)%edge_sign(ee)
-                pr3(cc) = pr3(cc) + (mesh%edges_r3(mesh%cells(cc)%edge(ee)) + mesh%edges_d3(mesh%cells(cc)%edge(ee)))*mesh%cells(cc)%edge_sign(ee)
-                pr4(cc) = pr4(cc) + (mesh%edges_r4(mesh%cells(cc)%edge(ee)) + mesh%edges_d4(mesh%cells(cc)%edge(ee)))*mesh%cells(cc)%edge_sign(ee)
+        !evaluate the residual 
+        call get_edge_fluxes_cpx(mesh_cpx,options,.False.)
+        do cc=1,mesh_cpx%ncell
+            pr1c(cc) = complex(0.0d0,0.0d0) 
+            pr2c(cc) = complex(0.0d0,0.0d0) 
+            pr3c(cc) = complex(0.0d0,0.0d0) 
+            pr4c(cc) = complex(0.0d0,0.0d0) 
+            do ee=1,mesh_cpx%cells(cc)%nedge
+                pr1c(cc) = pr1c(cc) + (mesh_cpx%edges_r1(mesh_cpx%cells(cc)%edge(ee)) + mesh_cpx%edges_d1(mesh_cpx%cells(cc)%edge(ee)))*mesh_cpx%cells(cc)%edge_sign(ee)
+                pr2c(cc) = pr2c(cc) + (mesh_cpx%edges_r2(mesh_cpx%cells(cc)%edge(ee)) + mesh_cpx%edges_d2(mesh_cpx%cells(cc)%edge(ee)))*mesh_cpx%cells(cc)%edge_sign(ee)
+                pr3c(cc) = pr3c(cc) + (mesh_cpx%edges_r3(mesh_cpx%cells(cc)%edge(ee)) + mesh_cpx%edges_d3(mesh_cpx%cells(cc)%edge(ee)))*mesh_cpx%cells(cc)%edge_sign(ee)
+                pr4c(cc) = pr4c(cc) + (mesh_cpx%edges_r4(mesh_cpx%cells(cc)%edge(ee)) + mesh_cpx%edges_d4(mesh_cpx%cells(cc)%edge(ee)))*mesh_cpx%cells(cc)%edge_sign(ee)
             end do 
         end do
 
-        !update to complex step ==========================
-
         !extract non-zero values and populate the grid jacobian 
-        do cc=1,mesh%nvertex
-            if (mesh%vertices_colour(cc) == clr) then 
+        do cc=1,mesh_cpx%nvertex
+            if (mesh_cpx%vertices_colour(cc) == clr) then 
 
-
-                ! r0 = (sum(mesh%cells_nadj(1:cc-1)) + cc - 1)*4 + nblock*(vv - 1) + 1
-                
                 !reset the column index offset
                 column_offset_index = 0 
 
                 !get the location of the start of this column in the sparse structure
-                r0 = sum(mesh%vertices(1:cc-1)%ncell)*4 + nblock*(vv - 1) + 1
+                r0 = sum(mesh_cpx%vertices(1:cc-1)%ncell)*4 + nblock*(vv - 1) + 1
 
                 !get the column corrsponding to this vertex cc and this coordinate vv
-                col = cc + (vv - 1)*mesh%nvertex
+                col = cc + (vv - 1)*mesh_cpx%nvertex
 
                 !extract each residual for this vertices adjacent cells
-                do aa=1,mesh%vertices(cc)%ncell
+                do aa=1,mesh_cpx%vertices(cc)%ncell
 
                     !get the adjacent cell 
-                    cadj = mesh%vertices(cc)%cells(aa)
+                    cadj = mesh_cpx%vertices(cc)%cells(aa)
 
                     !extract each residual for this cell
                     do rr=1,4
                         
                         !get the row index of this entry 
-                        row = cadj + (rr - 1)*mesh%ncell
+                        row = cadj + (rr - 1)*mesh_cpx%ncell
 
                         !get the col_offset of the entry for this cell in this column
                         col_offset = column_offset_index
@@ -733,13 +683,13 @@ do clr=1,ncolour
 
                         !insert the values
                         if (rr == 1) then 
-                            dRdX%value(r0 + col_offset) = (pr1(cadj) - r10(cadj))/h
+                            dRdX%value(r0 + col_offset) = aimag(pr1c(cadj))/h
                         elseif (rr == 2) then 
-                            dRdX%value(r0 + col_offset) = (pr2(cadj) - r20(cadj))/h
+                            dRdX%value(r0 + col_offset) = aimag(pr2c(cadj))/h
                         elseif (rr == 3) then 
-                            dRdX%value(r0 + col_offset) = (pr3(cadj) - r30(cadj))/h
+                            dRdX%value(r0 + col_offset) = aimag(pr3c(cadj))/h
                         elseif (rr == 4) then 
-                            dRdX%value(r0 + col_offset) = (pr4(cadj) - r40(cadj))/h
+                            dRdX%value(r0 + col_offset) = aimag(pr4c(cadj))/h
                         end if 
                         dRdX%column(r0 + col_offset) = col
                         dRdX%row(r0 + col_offset) = row
@@ -749,6 +699,17 @@ do clr=1,ncolour
                 !set the column end pointer 
                 dRdX%col_pointer(col+1) = r0 + col_offset + 1
             end if 
+        end do 
+
+        !reset variables 
+        do cc=1,mesh_cpx%nvertex
+            if (mesh_cpx%vertices_colour(cc) == clr) then 
+                if (vv == 1) then 
+                    mesh_cpx%vertices(cc)%coordinate(1) = coordinatetes0_x(cc)
+                elseif (vv == 2) then 
+                    mesh_cpx%vertices(cc)%coordinate(2) = coordinatetes0_y(cc)
+                end if 
+            end if  
         end do 
     end do 
 end do 
@@ -782,9 +743,10 @@ do rr=1,options%rk_niter
 
     !evaluate dissipation if enabled
 
+
+
     !step each cell 
     !$OMP do schedule(guided,50) 
-    !!$OMP single
     do cc=1,4*mesh%ncell
         mesh%psi(cc) = mesh%psi0(cc) - rk4_alpha(rr)*cell_timestep(cc)*(mesh%psi_dRdw_prd(cc) - dJdW(cc))
         if (isnan(mesh%psi(cc))) then 
@@ -932,7 +894,11 @@ end do
 mesh_cpx%cells_colour = mesh%cells_colour
 mesh_cpx%vertices_colour = mesh%vertices_colour
 mesh_cpx%cells_nadj = mesh%cells_nadj
-
+do ii=1,mesh%nvertex
+    mesh_cpx%vertices(ii)%ncell = mesh%vertices(ii)%ncell
+    allocate(mesh_cpx%vertices(ii)%cells(mesh%vertices(ii)%ncell))
+    mesh_cpx%vertices(ii)%cells = mesh%vertices(ii)%cells
+end do 
 
 !set the primative conditions in each cell 
 do ii=1,mesh%ncell
@@ -951,7 +917,7 @@ do ii=1,mesh_cpx%ncell
 end do 
 
 !get the mesh properties 
-call mesh_cpx%get_edges_geometry_cpx()
+call mesh_cpx%get_edges_geometry()
 return 
 end subroutine construct_complex_mesh
 
@@ -1145,7 +1111,7 @@ mesh%psi_v = mesh%psi(2*mesh%ncell+1:3*mesh%ncell)
 mesh%psi_e = mesh%psi(3*mesh%ncell+1:4*mesh%ncell)
 
 !evaluate the grid jacobian 
-call build_grid_jacobian_sparse(mesh,options,dRdX_sp)
+call build_grid_jacobian_sparse(mesh_cpx,options,dRdX_sp)
 
 
 ! !validate sparse jacobian
