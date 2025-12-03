@@ -544,4 +544,42 @@ p = (e - 0.5d0*vel2)*(gamma - 1.0)*w1
 return 
 end subroutine con2prim_cpx
 
+!set default options ===============
+subroutine set_default_options(options)
+
+!variables - inout 
+type(flux_options) :: options 
+
+!general
+options%cdisplay = .true.
+options%meshpath = 'grid'
+
+!flow conditions
+options%aoadeg = 0.0d0 
+options%machinf = 0.5d0 
+options%gamma = 1.4d0 
+options%R = 287.058d0
+options%tinf = 288.0d0
+options%rhoinf = 1.225d0 
+options%outflow_pratio = 0.8d0
+
+!solve options
+options%niter_max = 10000
+options%cfl = 2.0
+options%k2 = 0.5d0 
+options%k4 = 0.1d0
+options%num_threads = 1
+options%residual_convtol = -8.0 
+options%flux_method = 'vanleer'
+
+!rk options
+options%rk_niter = 4
+allocate(options%rk_dissipation(options%rk_niter))
+options%rk_dissipation(1) = .false.
+options%rk_dissipation(2) = .false.
+options%rk_dissipation(3) = .false.
+options%rk_dissipation(4) = .false.
+return 
+end subroutine set_default_options
+
 end module flux_data_methods

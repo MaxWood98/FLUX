@@ -54,7 +54,7 @@ do ee=1,mesh%nedge
 
 
 
-        !CHECK THESE
+
 
         !accumulate dJdX x (dcydx -> dcydy = 0)
         dJdX(mesh%edges(ee)%v1) = dJdX(mesh%edges(ee)%v1) + wsin*mesh%cp(mesh%edges(ee)%c1)
@@ -123,7 +123,7 @@ call con2prim_cpx(rhoc,uc,vc,pc,ec,gammac,complex(w1,0.0d0),complex(w2,0.0d0),co
 gw4 = aimag(pc)/h
 
 !debug fd check --
-! call con2prim(rhop,up,vp,pp,ep,options%gamma,w10+1e-8,w20,w30,w40)
+! call con2prim(rhop,up,vp,pp,ep,options%gamma,w1+1e-8,w2,w3,w4)
 ! print *, (pp - mesh%p(c))/1e-8
 !debug fd check --
 return 

@@ -14,60 +14,14 @@ implicit none
 type(flux_mesh) :: mesh 
 type(flux_options) :: options 
 
-
 !set default options 
-! call set_default_options(options)
+call set_default_options(options)
 
 !read command arguments 
 call get_command_arguments(options)
 
-
-
-
-
-!import options 
-options%cdisplay = .true.
-! options%meshpath = 'test_meshes/naca0012'
-! options%meshpath = 'test_meshes/kh0p1'
-! options%meshpath = 'test_meshes/cv8x8op'
-! options%meshpath = 'test_meshes/cv8x8rnd'
-options%meshpath = 'grid_cell_naca'
-
-
-
-options%aoadeg = 0.0d0 
-options%machinf = 0.95d0 
-options%gamma = 1.4d0 
-options%R = 287.058d0
-options%tinf = 288.0d0
-options%rhoinf = 1.225d0 
-
-options%outflow_pratio = 0.8d0
-
-
-options%niter_max = 10000
-options%cfl = 4.0
-
-options%rk_niter = 4
-options%k2 = 0.005d0 
-options%k4 = 0.001d0
-
-options%num_threads = 8
-options%residual_convtol = -8.0 
-
-options%flux_method = 'vanleer'
-
-
-
-
-allocate(options%rk_dissipation(options%rk_niter))
-options%rk_dissipation(1) = .false.
-options%rk_dissipation(2) = .false.
-options%rk_dissipation(3) = .false.
-options%rk_dissipation(4) = .false.
-
-
-
+!read options 
+call read_options(options)
 
 !display splash 
 if (options%cdisplay) then
@@ -75,7 +29,7 @@ if (options%cdisplay) then
     write(*,'(A)')'+--------------------------------------------+'
     write(*,'(A)')'|                   flux 2d                  |'
     write(*,'(A)')'|      2d unstructured euler flow solver     |'
-    write(*,'(A)')'|       Version 0.0.2 || 27/11/2025          |'
+    write(*,'(A)')'|       Version 0.0.2 || 03/12/2025          |'
     write(*,'(A)')'|                 Max Wood                   |'
     write(*,'(A)')'|           University of Bristol            |'
     write(*,'(A)')'|    Department of Aerospace Engineering     |'

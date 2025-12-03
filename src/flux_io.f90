@@ -9,7 +9,7 @@ use io_utilities
 use flux_data_methods
 contains 
 
-!read command arguments subroutine ===========================
+!read command arguments subroutine ===============
 subroutine get_command_arguments(options)
 implicit none
 
@@ -31,6 +31,72 @@ end if
 return 
 end subroutine get_command_arguments
 
+!read options ===============
+subroutine read_options(options)
+implicit none
+
+!variables - inout
+type(flux_options) :: options 
+
+!variables - Local
+integer(in32) :: ii,fh
+integer(in64) :: itemtemp
+integer(in64), dimension(:), allocatable :: dissflags
+
+!check if file exists 
+if (.NOT. file_exists('flux_options')) then 
+    write(*,'(A)') '** cannot locate options file: '//trim('flux_options')
+    stop 
+end if 
+
+!open file 
+open(newunit=fh,file='flux_options')
+
+!set options 
+call set_log_opt(options%cdisplay,fh,'console_display')
+call set_str_opt(options%meshpath,fh,'meshpath')
+call set_real_opt(options%aoadeg,fh,'aoadeg')
+call set_real_opt(options%machinf,fh,'machinf')
+call set_real_opt(options%gamma,fh,'gamma')
+call set_real_opt(options%R,fh,'R')
+call set_real_opt(options%tinf,fh,'tinf')
+call set_real_opt(options%rhoinf,fh,'rhoinf')
+call set_real_opt(options%outflow_pratio,fh,'outflow_pratio')
+itemtemp = -1 
+call set_int_opt(itemtemp,fh,'niter_max')
+if (itemtemp .GE. 0) then 
+    options%niter_max = int(itemtemp,in32)
+end if 
+call set_real_opt(options%cfl,fh,'cfl')
+call set_real_opt(options%k2,fh,'k2')
+call set_real_opt(options%k4,fh,'k4')
+call set_str_opt(options%flux_method,fh,'flux_method')
+itemtemp = -1 
+call set_int_opt(itemtemp,fh,'num_threads')
+if (itemtemp .GE. 0) then 
+    options%num_threads = int(itemtemp,in32)
+end if 
+call set_real_opt(options%residual_convtol,fh,'residual_convtol')
+call set_int_opt_arr1(dissflags,fh,'RKstagediss_eval')
+if (allocated(dissflags)) then 
+    if (allocated(options%rk_dissipation)) then 
+        deallocate(options%rk_dissipation)
+    end if 
+    allocate(options%rk_dissipation(size(dissflags)))
+    do ii=1,size(dissflags)
+        if (dissflags(ii) == 1) then 
+            options%rk_dissipation(ii) = .true.
+        else
+            options%rk_dissipation(ii) = .false.
+        end if 
+    end do 
+    deallocate(dissflags)
+end if 
+
+!close file 
+close(fh)
+return 
+end subroutine read_options
 
 !import mesh ===============
 subroutine import_mesh(mesh,options,filename)
@@ -237,7 +303,8 @@ write(11,'(A,I0)') 'CELL_DATA ',mesh%ncell
 write(11,'(A)') 'SCALARS cp double' !cp
 write(11,'(A)') 'LOOKUP_TABLE default'
 do ii=1,mesh%ncell
-    write(11,'(E17.10)') pressure_coefficient(mesh%p(ii),options)
+    mesh%cp(ii) = pressure_coefficient(mesh%p(ii),options)
+    write(11,'(E17.10)') mesh%cp(ii)
 end do 
 
 write(11,'(A)') 'SCALARS p double' !p
@@ -255,6 +322,7 @@ end do
 write(11,'(A)') 'SCALARS mach double' !mach
 write(11,'(A)') 'LOOKUP_TABLE default'
 do ii=1,mesh%ncell
+    mesh%mach(ii) = sqrt(mesh%u(ii)**2 + mesh%v(ii)**2)/speed_of_sound(mesh%p(ii),mesh%rho(ii),options%gamma)
     write(11,'(E17.10)') mesh%mach(ii)
 end do 
 

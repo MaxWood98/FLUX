@@ -68,7 +68,7 @@ else
     f32 = f12*((ny*(-vn2 - 2.0d0*c2)/gamma) + v2)
     f42 = f12*((((gamma - 1.0d0)*vn2 - 2.0d0*c2)**2)/(2.0d0*(gamma*gamma - 1.0d0)) + 0.5d0*(u2*u2 + v2*v2 - vn2*vn2))
 
-    !evaluate th edge flux
+    !evaluate the edge flux
     fx1 = (f11 + f12)*elen
     fx2 = (f21 + f22)*elen
     fx3 = (f31 + f32)*elen
@@ -103,12 +103,14 @@ m2 = vn2/c2
 if (real(m1,dp) .LE. 1.0d0) then 
     m1p = 0.25d0*((m1 + 1.0d0)**2)
 else !m1 .LE. -1.0d0
-    m1p = 0.5d0*(m1 + abs(m1))
+    ! m1p = 0.5d0*(m1 + abs(m1))
+    m1p = 0.5d0*(m1 + sqrt(m1*m1))
 end if 
 if (real(m2,dp) .LE. 1.0d0) then 
     m2p = -0.25d0*((m2 - 1.0d0)**2)
 else !m1 .LE. -1.0d0
-    m2p = 0.5d0*(m2 - abs(m2))
+    ! m2p = 0.5d0*(m2 - abs(m2))
+    m2p = 0.5d0*(m2 - sqrt(m2*m2))
 end if 
 ma = m1p + m2p
 
@@ -137,7 +139,7 @@ else
     f32 = f12*((ny*(-vn2 - 2.0d0*c2)/gamma) + v2)
     f42 = f12*((((gamma - 1.0d0)*vn2 - 2.0d0*c2)**2)/(2.0d0*(gamma*gamma - 1.0d0)) + 0.5d0*(u2*u2 + v2*v2 - vn2*vn2))
 
-    !evaluate th edge flux
+    !evaluate the edge flux
     fx1 = (f11 + f12)*elen
     fx2 = (f21 + f22)*elen
     fx3 = (f31 + f32)*elen
