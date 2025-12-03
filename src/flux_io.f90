@@ -9,13 +9,37 @@ use io_utilities
 use flux_data_methods
 contains 
 
+!read command arguments subroutine ===========================
+subroutine get_command_arguments(options)
+implicit none
+
+!variables - import
+type(flux_options) :: options 
+
+!variables - local 
+integer(in32) :: nargs
+
+!check and process supplied command arguments 
+nargs = command_argument_count()
+
+!set mode
+if (nargs == 0) then !default to solve mode
+    options%mode = 'solve'
+else !set mode from first argument 
+    options%mode = get_command_argument_n_str(1)
+end if 
+return 
+end subroutine get_command_arguments
+
+
 !import mesh ===============
-subroutine import_mesh(mesh,filename)
+subroutine import_mesh(mesh,options,filename)
 implicit none 
 
 !variables - inout
 character(*) :: filename
 type(flux_mesh) :: mesh 
+type(flux_options) :: options 
 
 !variables - local
 integer(in32) :: ii,jj
@@ -62,12 +86,10 @@ do while (iostatus == 0)
         allocate(mesh%l4(mesh%ncell))
         allocate(mesh%cells_psensor(mesh%ncell))
         allocate(mesh%residual(mesh%ncell))
-        
-        allocate(mesh%cells_colour(mesh%ncell))
-        allocate(mesh%cells_nadj(mesh%ncell))
-        
-        
-
+        if (options%mode == 'adjoint') then 
+            allocate(mesh%cells_colour(mesh%ncell))
+            allocate(mesh%cells_nadj(mesh%ncell))
+        end if   
         do ii=1,mesh%ncell
             read(11,*) cindex,nedge 
             mesh%cells(cindex)%nedge = nedge
@@ -77,10 +99,6 @@ do while (iostatus == 0)
             allocate(mesh%cells(cindex)%edgec(nedge))
             allocate(mesh%cells(cindex)%edge(nedge))    
             allocate(mesh%cells(cindex)%edge_sign(nedge))
-
-
-
-
             do jj=1,nedge
                 read(11,*) mesh%cells(cindex)%edgev1(jj),mesh%cells(cindex)%edgev2(jj),mesh%cells(cindex)%edgec(jj),mesh%cells(cindex)%edge(jj)
             end do 
@@ -112,8 +130,6 @@ do while (iostatus == 0)
         allocate(mesh%edges_d4(mesh%nedge))
         allocate(mesh%edges_pn(mesh%nedge))
         allocate(mesh%edges_pd(mesh%nedge))
-
-
         do ii=1,mesh%nedge
             mesh%edges(ii)%index = ii 
             read(11,*) mesh%edges(ii)%v1,mesh%edges(ii)%v2,mesh%edges(ii)%c1,mesh%edges(ii)%c2
@@ -130,9 +146,9 @@ do while (iostatus == 0)
     if (rtemp(1:7) == 'nvertex') then 
         read(rtemp(11:len_trim(rtemp)),*) mesh%nvertex
         allocate(mesh%vertices(mesh%nvertex))
-
-        allocate(mesh%vertices_colour(mesh%nvertex))
-
+        if (options%mode == 'adjoint') then 
+            allocate(mesh%vertices_colour(mesh%nvertex))
+        end if 
         do ii=1,mesh%nvertex
             mesh%vertices(ii)%index = ii 
             read(11,*) mesh%vertices(ii)%coordinate
@@ -216,14 +232,13 @@ do ii=1,mesh%ncell
     write(11,'(I0)') 7 
 end do 
 
-!write cell based data
 write(11,'(A,I0)') 'CELL_DATA ',mesh%ncell
 
-! write(11,'(A)') 'SCALARS cp double' !cp
-! write(11,'(A)') 'LOOKUP_TABLE default'
-! do ii=1,mesh%ncell
-!     write(11,'(E17.10)') pressure_coefficient(mesh%p(ii),options)
-! end do 
+write(11,'(A)') 'SCALARS cp double' !cp
+write(11,'(A)') 'LOOKUP_TABLE default'
+do ii=1,mesh%ncell
+    write(11,'(E17.10)') pressure_coefficient(mesh%p(ii),options)
+end do 
 
 write(11,'(A)') 'SCALARS p double' !p
 write(11,'(A)') 'LOOKUP_TABLE default'
@@ -231,17 +246,17 @@ do ii=1,mesh%ncell
     write(11,'(E17.10)') mesh%p(ii)
 end do 
 
-write(11,'(A)') 'SCALARS rho double' !eho
+write(11,'(A)') 'SCALARS rho double' !rho
 write(11,'(A)') 'LOOKUP_TABLE default'
 do ii=1,mesh%ncell
     write(11,'(E17.10)') mesh%rho(ii)
 end do 
 
-! write(11,'(A)') 'SCALARS mach double' !mach
-! write(11,'(A)') 'LOOKUP_TABLE default'
-! do ii=1,mesh%ncell
-!     write(11,'(E17.10)') mesh%mach(ii)
-! end do 
+write(11,'(A)') 'SCALARS mach double' !mach
+write(11,'(A)') 'LOOKUP_TABLE default'
+do ii=1,mesh%ncell
+    write(11,'(E17.10)') mesh%mach(ii)
+end do 
 
 write(11,'(A)') 'SCALARS u double' !u
 write(11,'(A)') 'LOOKUP_TABLE default'
@@ -255,76 +270,72 @@ do ii=1,mesh%ncell
     write(11,'(E17.10)') mesh%v(ii)
 end do 
 
-! write(11,'(A)') 'SCALARS density_residual double' !rhores
-! write(11,'(A)') 'LOOKUP_TABLE default'
-! do ii=1,mesh%ncell
-!     write(11,'(E17.10)') mesh%residual(ii)
-! end do 
+if (options%mode == 'solve') then 
+    write(11,'(A)') 'SCALARS density_residual double' !rhores
+    write(11,'(A)') 'LOOKUP_TABLE default'
+    do ii=1,mesh%ncell
+        write(11,'(E17.10)') mesh%residual(ii)
+    end do 
+end if 
 
+!write adjoint variables
+if (options%mode == 'adjoint') then 
 
+    write(11,'(A)') 'SCALARS cell_colour integer' !cell colour
+    write(11,'(A)') 'LOOKUP_TABLE default'
+    do ii=1,mesh%ncell
+        write(11,'(I0)') mesh%cells_colour(ii)
+    end do 
 
-write(11,'(A)') 'SCALARS cell_colour integer' !cell colour
-write(11,'(A)') 'LOOKUP_TABLE default'
-do ii=1,mesh%ncell
-    write(11,'(I0)') mesh%cells_colour(ii)
-end do 
+    write(11,'(A)') 'SCALARS psi_rho double' !psi_rho
+    write(11,'(A)') 'LOOKUP_TABLE default'
+    do ii=1,mesh%ncell
+        write(11,'(E17.10)') mesh%psi_rho(ii)
+    end do 
 
-write(11,'(A)') 'SCALARS psi_rho double' !psi_rho
-write(11,'(A)') 'LOOKUP_TABLE default'
-do ii=1,mesh%ncell
-    write(11,'(E17.10)') mesh%psi_rho(ii)
-end do 
+    write(11,'(A)') 'SCALARS psi_u double' !psi_u
+    write(11,'(A)') 'LOOKUP_TABLE default'
+    do ii=1,mesh%ncell
+        write(11,'(E17.10)') mesh%psi_u(ii)
+    end do 
 
-write(11,'(A)') 'SCALARS psi_u double' !psi_u
-write(11,'(A)') 'LOOKUP_TABLE default'
-do ii=1,mesh%ncell
-    write(11,'(E17.10)') mesh%psi_u(ii)
-end do 
+    write(11,'(A)') 'SCALARS psi_v double' !psi_v
+    write(11,'(A)') 'LOOKUP_TABLE default'
+    do ii=1,mesh%ncell
+        write(11,'(E17.10)') mesh%psi_v(ii)
+    end do 
 
-write(11,'(A)') 'SCALARS psi_v double' !psi_v
-write(11,'(A)') 'LOOKUP_TABLE default'
-do ii=1,mesh%ncell
-    write(11,'(E17.10)') mesh%psi_v(ii)
-end do 
+    write(11,'(A)') 'SCALARS psi_e double' !psi_e
+    write(11,'(A)') 'LOOKUP_TABLE default'
+    do ii=1,mesh%ncell
+        write(11,'(E17.10)') mesh%psi_e(ii)
+    end do 
 
-write(11,'(A)') 'SCALARS psi_e double' !psi_e
-write(11,'(A)') 'LOOKUP_TABLE default'
-do ii=1,mesh%ncell
-    write(11,'(E17.10)') mesh%psi_e(ii)
-end do 
+    write(11,'(A,I0)') 'POINT_DATA ',mesh%nvertex
 
+    write(11,'(A)') 'SCALARS vertex_colour integer' !vertex colour
+    write(11,'(A)') 'LOOKUP_TABLE default'
+    do ii=1,mesh%nvertex
+        write(11,'(I0)') mesh%vertices_colour(ii)
+    end do 
 
+    write(11,'(A)') 'SCALARS vertex_derivative_x double' !vertex derivative x
+    write(11,'(A)') 'LOOKUP_TABLE default'
+    do ii=1,mesh%nvertex
+        write(11,'(E17.10)') mesh%vertex_derivative_x(ii)
+    end do 
 
+    write(11,'(A)') 'SCALARS vertex_derivative_y double' !vertex derivative y
+    write(11,'(A)') 'LOOKUP_TABLE default'
+    do ii=1,mesh%nvertex
+        write(11,'(E17.10)') mesh%vertex_derivative_y(ii)
+    end do 
 
-!write vertex based data
-write(11,'(A,I0)') 'POINT_DATA ',mesh%nvertex
-
-write(11,'(A)') 'SCALARS vertex_colour integer' !vertex colour
-write(11,'(A)') 'LOOKUP_TABLE default'
-do ii=1,mesh%nvertex
-    write(11,'(I0)') mesh%vertices_colour(ii)
-end do 
-
-write(11,'(A)') 'SCALARS vertex_derivative_x double' !vertex derivative x
-write(11,'(A)') 'LOOKUP_TABLE default'
-do ii=1,mesh%nvertex
-    write(11,'(E17.10)') mesh%vertex_derivative_x(ii)
-end do 
-
-write(11,'(A)') 'SCALARS vertex_derivative_y double' !vertex derivative y
-write(11,'(A)') 'LOOKUP_TABLE default'
-do ii=1,mesh%nvertex
-    write(11,'(E17.10)') mesh%vertex_derivative_y(ii)
-end do 
-
-
-
-write(11,'(A)') 'VECTORS vertex_derivative double' !vertex derivative 
-do ii=1,mesh%nvertex
-    write(11,'(E17.10,A,E17.10,A,E17.10)') mesh%vertex_derivative_x(ii),' ',mesh%vertex_derivative_y(ii),' ',0.0d0
-end do 
-
-
+    write(11,'(A)') 'VECTORS vertex_derivative double' !vertex derivative 
+    do ii=1,mesh%nvertex
+        write(11,'(E17.10,A,E17.10,A,E17.10)') mesh%vertex_derivative_x(ii),' ',mesh%vertex_derivative_y(ii),' ',0.0d0
+    end do 
+end if 
 
 !close vtk file 
 close(11)
@@ -371,34 +382,24 @@ close(11)
 return 
 end subroutine read_flow_field
 
+!write gradient =========================
+subroutine write_gradient(filename,mesh)
+implicit none 
 
+!variables - inout
+character(*), intent(in) :: filename
+type(flux_mesh) :: mesh 
 
-! !read restart file =========================
-! subroutine read_restart_file(filename,mesh,options)
-! implicit none 
+!variables local
+integer(in32) :: vv  
 
-! !variables - inout
-! character(*), intent(in) :: filename
-! type(flux_options) :: options 
-! type(flux_mesh) :: mesh 
-
-! !variables - Local 
-! integer(in64) :: cc 
-
-! !read file 
-! open(11,file=filename)
-! do cc=1,mesh%ncell
-!     read(11,*) mesh%cells(cc)%u,mesh%cells(cc)%v,&
-!     mesh%cells(cc)%mach,mesh%cells(cc)%p,mesh%cells(cc)%rho,mesh%cells(cc)%cp,mesh%cells(cc)%e
-! end do 
-! close(11)
-
-! !set the conservative variables in each cell 
-! do cc=1,mesh%ncell
-!     call mesh%cells(cc)%prim2con(options%gamma)
-! end do 
-! return 
-! end subroutine read_restart_file
-
+!write
+open(11,file=filename) 
+do vv=1,mesh%nvertex
+    write(11,'(E17.10,A,E17.10)') mesh%vertex_derivative_x(vv),' ',mesh%vertex_derivative_y(vv)
+end do 
+close(11)
+return 
+end subroutine write_gradient
 
 end module flux_io

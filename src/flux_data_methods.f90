@@ -28,7 +28,7 @@ type flux_options
     integer(in32) :: niter_max,rk_niter,num_threads
     real(dp) :: cfl,aoadeg,aoarad,gamma,R,k2,k4,residual_convtol,outflow_pratio
     real(dp) :: machinf,tinf,rhoinf,cinf,pinf,velinf,uinf,vinf,p0inf,rho0inf,t0inf
-    character(len=:), allocatable :: meshpath,meshname
+    character(len=:), allocatable :: meshpath,meshname,mode,flux_method
 end type flux_options 
 
 !vertex types
@@ -74,7 +74,7 @@ end type flux_cell_cpx
 !mesh type 
 type flux_mesh
     integer(in32) :: nvertex,nedge,ncell 
-    real(dp) :: cl,cd,cm,mflux_in,mflux_out
+    real(dp) :: cx,cy,cl,cd,cm,mflux_in,mflux_out
     integer(in32), dimension(:), allocatable :: vertices_colour,cells_colour,cells_nadj
     real(dp), dimension(:), allocatable :: cells_specrad,cells_volume,cells_dt,cells_psensor
     real(dp), dimension(:), allocatable :: edges_specrad
@@ -100,7 +100,7 @@ end type flux_mesh
 !complex mesh type 
 type flux_mesh_cpx
     integer(in32) :: nvertex,nedge,ncell 
-    complex(dp) :: cl,cd,cm,mflux_in,mflux_out
+    complex(dp) :: cx,cy,cl,cd,cm,mflux_in,mflux_out
     integer(in32), dimension(:), allocatable :: vertices_colour,cells_colour,cells_nadj
     complex(dp), dimension(:), allocatable :: cells_specrad,cells_volume,cells_dt,cells_psensor
     complex(dp), dimension(:), allocatable :: edges_specrad

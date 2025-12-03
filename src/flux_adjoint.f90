@@ -52,6 +52,10 @@ do ee=1,mesh%nedge
         gradc = (wcos*mesh%edges(ee)%dy - wsin*mesh%edges(ee)%dx)*(2.0d0/(options%gamma*options%pinf*options%machinf*options%machinf))
         dcddp(mesh%edges(ee)%c1) = dcddp(mesh%edges(ee)%c1) + gradc
 
+
+
+        !CHECK THESE
+
         !accumulate dJdX x (dcydx -> dcydy = 0)
         dJdX(mesh%edges(ee)%v1) = dJdX(mesh%edges(ee)%v1) + wsin*mesh%cp(mesh%edges(ee)%c1)
         dJdX(mesh%edges(ee)%v2) = dJdX(mesh%edges(ee)%v2) - wsin*mesh%cp(mesh%edges(ee)%c1) 
@@ -936,7 +940,7 @@ type(flux_options) :: options
 !variables - local 
 logical :: nanflag,resconv
 integer(in32) :: iteration,cc,ee
-real(dp) :: psirhores
+real(dp) :: psirhores,psirhores0
 real(dp) :: cell_timestep(4*mesh%ncell)
 real(dp), dimension(:), allocatable :: dJdW,dJdX,dtotal
 type(csc_matrix) :: dRdW_sp,dRdX_sp
@@ -1019,6 +1023,12 @@ mesh%psi0 = 0.0d0
 mesh%psi = 0.0d0 
 mesh%psi_dRdw_prd = 0.0d0 
 
+!initial display
+if (options%cdisplay) then     
+    write(*,'(A)') '    ittn    |  psirhores   '
+    write(*,'(A)') '+-----------+-------------+'
+end if 
+
 !initialise the parallel region 
 !$OMP parallel
 
@@ -1042,13 +1052,22 @@ do iteration=1,options%niter_max
     !$OMP single    
 
     !check convergence
-    psirhores = log10(sqrt(sum((mesh%residual)**2)))
+    if (iteration == 1) then 
+        psirhores0 = sqrt(sum((mesh%residual)**2))
+    end if 
+    psirhores = log10(sqrt(sum((mesh%residual)**2))/psirhores0)
     if (psirhores .LE. options%residual_convtol) then 
         resconv = .true.
     end if 
 
     !display 
-    print *, 'iter = ',iteration,' psirho_res = ', psirhores
+    if (options%cdisplay) then     
+        if (mod(iteration,100) == 0) then
+            write(*,'(A)') '    ittn    |  psirhores   '
+            write(*,'(A)') '+-----------+-------------+'
+        end if 
+            write(*,'(A,I8,A,F11.8)') '    ',iteration,'  ',psirhores
+    end if
 
     !end single thread section
     !$OMP end single

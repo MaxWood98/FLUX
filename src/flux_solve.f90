@@ -87,7 +87,7 @@ type(flux_options) :: options
 integer(in32) :: ee,cc
 integer(in32) :: iteration
 logical :: resconv,nanflag
-real(dp) :: rhores
+real(dp) :: rhores,rhores0
 
 !initialise flags
 resconv = .false.
@@ -101,6 +101,12 @@ mesh%edges_d1(:) = 0.0d0
 mesh%edges_d2(:) = 0.0d0 
 mesh%edges_d3(:) = 0.0d0 
 mesh%edges_d4(:) = 0.0d0 
+
+!initial display
+if (options%cdisplay) then     
+    write(*,'(A)') '    ittn    |   rhores   |     cl     |     cd     '
+    write(*,'(A)') '+-----------+------------+------------+------------+'
+end if 
 
 !initialise the parallel region 
 !$OMP parallel
@@ -139,20 +145,30 @@ do iteration=1,options%niter_max
     !rk iterate this timestep 
     call rk_iterate(mesh,options,nanflag)
 
-
+    !initiate single threaded region 
     !$OMP single
     
+    !evaluate forces
+    call get_forces(mesh,options)
 
     !check convergence
-    rhores = log10(sqrt(sum((mesh%residual)**2)))
+    if (iteration == 1) then 
+        rhores0 = sqrt(sum((mesh%residual)**2))
+    end if 
+    rhores = log10(sqrt(sum((mesh%residual)**2))/rhores0)
     if (rhores .LE. options%residual_convtol) then 
         resconv = .true.
     end if 
 
-    !display 
-    print *, 'iter = ',iteration,' rho_res = ', rhores
+    !display                 
+    if (options%cdisplay) then     
+        if (mod(iteration,100) == 0) then
+            write(*,'(A)') '    ittn    |   rhores   |     cl     |     cd     '
+            write(*,'(A)') '+-----------+------------+------------+------------+'
+        end if 
+            write(*,'(A,I8,A,F11.8,A,F11.8,A,F11.8)') '    ',iteration,'  ',rhores,'  ',mesh%cl,'  ',mesh%cd
+    end if
     !$OMP end single
-
 end do 
 
 !end the parallel region
@@ -163,6 +179,9 @@ do cc=1,mesh%ncell
     mesh%mach(cc) = sqrt(mesh%u(cc)**2 + mesh%v(cc)**2)/speed_of_sound(mesh%p(cc),mesh%rho(cc),options%gamma)
     mesh%cp(cc) = pressure_coefficient(mesh%p(cc),options)
 end do 
+
+!evaluate forces
+call get_forces(mesh,options)
 return 
 end subroutine flux_flow_solve
 
@@ -267,6 +286,8 @@ do ee=1,mesh%nedge
         call edge_laplacian(mesh,ee)
     end if 
     if (c2 .GT. 0) then !internal cell
+
+        !extract properties
         rho1 = mesh%rho(c1)
         u1 = mesh%u(c1)
         v1 = mesh%v(c1)
@@ -278,13 +299,16 @@ do ee=1,mesh%nedge
         p2 = mesh%p(c2)
         e2 = mesh%e(c2)
 
-
-        call vanleer_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,options%gamma,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
-        ! call ausm_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,options%gamma,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
-        ! call roe_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,options%gamma,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
-        ! call jameson_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
-
-
+        !evaluate the flux
+        if (options%flux_method == 'vanleer') then 
+            call vanleer_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,options%gamma,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+        elseif (options%flux_method == 'ausm') then 
+            call ausm_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,options%gamma,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+        elseif (options%flux_method == 'roe') then 
+            call roe_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,options%gamma,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+        elseif (options%flux_method == 'jameson') then 
+            call jameson_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+        end if 
     elseif (c2 == -1) then !wall   
         rho1 = 0.0
         u1 = 0.0
@@ -379,11 +403,13 @@ gamma_cpx = complex(options%gamma,0.0d0)
 do ee=1,mesh%nedge
     c1 = mesh%edges(ee)%c1
     c2 = mesh%edges(ee)%c2
-    ! if (dissipation) then !dissipation components
+    if (dissipation) then !dissipation components
     !     call edge_pressure_sensor(mesh,ee) 
     !     call edge_laplacian(mesh,ee)
-    ! end if 
+    end if 
     if (c2 .GT. 0) then !internal cell
+
+        !extract properties
         rho1 = mesh%rho(c1)
         u1 = mesh%u(c1)
         v1 = mesh%v(c1)
@@ -395,13 +421,16 @@ do ee=1,mesh%nedge
         p2 = mesh%p(c2)
         e2 = mesh%e(c2)
 
-
-        call vanleer_flux_cpx(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,gamma_cpx,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
-        ! call ausm_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,options%gamma,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
-        ! call roe_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,options%gamma,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
-        ! call jameson_flux_cpx(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
-
-
+        !evaluate the flux
+        if (options%flux_method == 'vanleer') then 
+            call vanleer_flux_cpx(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,gamma_cpx,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+        elseif (options%flux_method == 'ausm') then 
+            ! call ausm_flux_cpx(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,gamma_cpx,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+        elseif (options%flux_method == 'roe') then 
+            ! call roe_flux_cpx(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,gamma_cpx,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+        elseif (options%flux_method == 'jameson') then 
+            call jameson_flux_cpx(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+        end if 
     elseif (c2 == -1) then !wall   
         rho1 = 0.0
         u1 = 0.0
@@ -643,5 +672,34 @@ end if
 mesh%edges_specrad(e) = (abs(mesh%edges(e)%nx*ue + mesh%edges(e)%ny*ve + sose) + sose)*mesh%edges(e)%length
 return 
 end subroutine edge_spectral_radius
+
+!get forces ===============
+subroutine get_forces(mesh,options)
+implicit none 
+
+!variables - inout
+type(flux_mesh) :: mesh 
+type(flux_options) :: options 
+
+!variables - local 
+integer(in32) :: ee  
+
+!initialise 
+mesh%cx = 0.0d0 
+mesh%cy = 0.0d0 
+
+!accumulate 
+do ee=1,mesh%nedge
+    if (mesh%edges(ee)%c2 == -1) then 
+        mesh%cx = mesh%cx + mesh%edges(ee)%dy*pressure_coefficient(mesh%p(mesh%edges(ee)%c1),options)
+        mesh%cy = mesh%cy - mesh%edges(ee)%dx*pressure_coefficient(mesh%p(mesh%edges(ee)%c1),options)
+    end if 
+end do 
+
+!evaluate
+mesh%cd = cos(options%aoarad)*mesh%cx + sin(options%aoarad)*mesh%cy
+mesh%cl = cos(options%aoarad)*mesh%cy - sin(options%aoarad)*mesh%cx
+return 
+end subroutine get_forces
 
 end module flux_solve
