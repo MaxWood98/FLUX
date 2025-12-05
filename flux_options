@@ -5,7 +5,7 @@
 console_display = yes
 
 #mesh path 
-meshpath = grid_cell_kh_0p1_fixed
+meshpath = grid_cell
 
 #flow conditions 
 aoadeg = 0.0
