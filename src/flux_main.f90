@@ -74,6 +74,7 @@ if (options%mode == 'solve') then !primal solve
     !post-process 
     call write_vtk(mesh,options,'flow.vtk')
     call write_flow_field('flowfield',mesh)
+    call write_forces('forces',mesh)
 elseif (options%mode == 'adjoint') then !adjoint solve
 
     !UPDATE INTEGER TO IN64 FOR ALL METHODS INDEXING INTO SPARSE JACOBIANS TO AVOID OVERFLOW ERRORS

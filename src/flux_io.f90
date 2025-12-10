@@ -470,4 +470,20 @@ close(11)
 return 
 end subroutine write_gradient
 
+!write forces =========================
+subroutine write_forces(filename,mesh)
+implicit none 
+
+!variables - inout
+character(*), intent(in) :: filename
+type(flux_mesh) :: mesh 
+
+!write
+open(11,file=filename) 
+write(11,'(A,E17.10)') 'cl = ',mesh%cl
+write(11,'(A,E17.10)') 'cd = ',mesh%cd
+close(11)
+return 
+end subroutine write_forces
+
 end module flux_io

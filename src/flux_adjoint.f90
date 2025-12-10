@@ -1094,7 +1094,8 @@ allocate(dtotal(2*mesh%nvertex))
 !$OMP parallel
 call csc_vector_product(dRdX_sp,mesh%psi,dtotal)
 !$OMP end parallel 
-dtotal = dtotal + dJdX
+dtotal = dtotal - dJdX
+dtotal = -dtotal
 
 !extract the total derivative
 allocate(mesh%vertex_derivative_x(mesh%nvertex))
