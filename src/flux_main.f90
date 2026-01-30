@@ -29,7 +29,7 @@ if (options%cdisplay) then
     write(*,'(A)')'+--------------------------------------------+'
     write(*,'(A)')'|                   flux 2d                  |'
     write(*,'(A)')'|      2d unstructured euler flow solver     |'
-    write(*,'(A)')'|       Version 0.0.2 || 03/12/2025          |'
+    write(*,'(A)')'|       Version 0.0.4 || 30/01/2026          |'
     write(*,'(A)')'|                 Max Wood                   |'
     write(*,'(A)')'|           University of Bristol            |'
     write(*,'(A)')'|    Department of Aerospace Engineering     |'
@@ -73,6 +73,7 @@ if (options%mode == 'solve') then !primal solve
 
     !post-process 
     call write_vtk(mesh,options,'flow.vtk')
+    call write_vtu(mesh,options,'flow.vtu')
     call write_flow_field('flowfield',mesh)
     call write_forces('forces',mesh)
 elseif (options%mode == 'adjoint') then !adjoint solve
@@ -92,6 +93,7 @@ elseif (options%mode == 'adjoint') then !adjoint solve
 
     !post-process 
     call write_vtk(mesh,options,'flow.vtk')
+    call write_vtu(mesh,options,'flow.vtu')
     call write_gradient('gradient',mesh)
 end if 
 stop 

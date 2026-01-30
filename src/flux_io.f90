@@ -1,7 +1,7 @@
 !flux 2d io module 
 !max wood
-!version : 0.0.1
-!updated : 28-03-25
+!version : 0.0.2
+!updated : 30-01-26
 
 !module 
 module flux_io
@@ -246,6 +246,142 @@ call mesh%get_edges_geometry()
 call mesh%get_cells_volume()
 return 
 end subroutine import_mesh
+
+!write vtu ===============
+subroutine write_vtu(mesh,options,filename)
+implicit none 
+
+!variables - inout
+character(*) :: filename
+type(flux_mesh) :: mesh 
+type(flux_options) :: options 
+
+!variables - local
+integer(in64) :: ii,jj,offset
+
+!open vtu file
+open(11,file=filename) 
+
+!write headers
+! write(11,'(A)') '<xml version="1.0"?>'
+write(11,'(A)') '<VTKFile type="UnstructuredGrid" version="0.1" byte_order="LittleEndian">'
+write(11,'(A)') ' <UnstructuredGrid>'
+
+!write mesh data header
+write(11,'(A,I0,A,I0,A)') '  <Piece NumberOfPoints="',mesh%nvertex,'" NumberOfCells="',mesh%ncell,'">'
+
+!write vertices
+write(11,'(A)') '   <Points>'
+write(11,'(A)') '    <DataArray type="Float64" NumberOfComponents="3" Format="ascii">'
+do ii=1,mesh%nvertex
+    write(11,'(A,E17.10,A,E17.10,A,E17.10)') '     ',mesh%vertices(ii)%coordinate(1),' ',mesh%vertices(ii)%coordinate(2),' ',0.0d0
+end do 
+write(11,'(A)') '    </DataArray>'
+write(11,'(A)') '   </Points>'
+
+!write cells header
+write(11,'(A)') '   <Cells>'
+
+!write cells
+write(11,'(A)') '    <DataArray type="Int32" Name="connectivity" Format="ascii">'
+do ii=1,mesh%ncell
+    do jj=1,mesh%cells(ii)%nedge
+        write(11,'(A,I0)') '     ',mesh%cells(ii)%edgev1(jj) - 1
+    end do 
+end do 
+write(11,'(A)') '    </DataArray>'
+
+!write offsets
+write(11,'(A)') '    <DataArray type="Int32" Name="offsets" Format="ascii">'
+offset = 0
+do ii=1,mesh%ncell
+    offset = offset + mesh%cells(ii)%nedge
+    write(11,'(A,I0)') '     ',offset
+end do 
+write(11,'(A)') '    </DataArray>'
+
+!write cell types 
+write(11,'(A)') '    <DataArray type="UInt8" Name="types" Format="ascii">'
+do ii=1,mesh%ncell
+    if (mesh%cells(ii)%nedge == 3) then 
+        write(11,'(A)') '     5'
+    elseif (mesh%cells(ii)%nedge == 4) then 
+        write(11,'(A)') '     9'
+    else
+        write(11,'(A)') '     7'
+    end if 
+end do 
+write(11,'(A)') '    </DataArray>'
+
+!write cells footer
+write(11,'(A)') '   </Cells>'
+
+!write data 
+write(11,'(A)') '   <CellData>'
+
+!mach
+write(11,'(A)') '    <DataArray type="Float64" Name="Mach" format="ascii" NumberOfComponents="1">'
+do ii=1,mesh%ncell
+    write(11,'(A,E17.10)')'     ',mesh%mach(ii)
+end do 
+write(11,'(A)') '    </DataArray>'
+
+!cp
+write(11,'(A)') '    <DataArray type="Float64" Name="Cp" format="ascii" NumberOfComponents="1">'
+do ii=1,mesh%ncell
+    mesh%cp(ii) = pressure_coefficient(mesh%p(ii),options)
+    write(11,'(A,E17.10)')'     ',mesh%cp(ii)
+end do 
+write(11,'(A)') '    </DataArray>'
+
+!p
+write(11,'(A)') '    <DataArray type="Float64" Name="Pressure" format="ascii" NumberOfComponents="1">'
+do ii=1,mesh%ncell
+    write(11,'(A,E17.10)')'     ',mesh%p(ii)
+end do 
+write(11,'(A)') '    </DataArray>'
+
+!rho 
+write(11,'(A)') '    <DataArray type="Float64" Name="Density" format="ascii" NumberOfComponents="1">'
+do ii=1,mesh%ncell
+    write(11,'(A,E17.10)')'     ',mesh%rho(ii)
+end do 
+write(11,'(A)') '    </DataArray>'
+
+!velocity 
+write(11,'(A)') '    <DataArray type="Float64" Name="Velocity" format="ascii" NumberOfComponents="3">'
+do ii=1,mesh%ncell
+    write(11,'(A,E17.10,A,E17.10,A,E17.10)')'     ',mesh%u(ii),' ',mesh%v(ii),' ',0.0d0 
+end do 
+write(11,'(A)') '    </DataArray>'
+
+!rhores
+if (options%mode == 'solve') then 
+    write(11,'(A)') '    <DataArray type="Float64" Name="Density Resdidual" format="ascii" NumberOfComponents="1">'
+    do ii=1,mesh%ncell
+        write(11,'(A,E17.10)')'     ',mesh%residual(ii)
+    end do 
+    write(11,'(A)') '    </DataArray>'
+end if 
+
+
+
+
+
+
+!write data footer
+write(11,'(A)') '   </CellData>'
+
+!write footers
+write(11,'(A)') '  </Piece>'
+write(11,'(A)') ' </UnstructuredGrid>'
+write(11,'(A)') '</VTKFile>'
+
+!close vtu file 
+close(11)
+return 
+end subroutine write_vtu
+
 
 !write vtk ===============
 subroutine write_vtk(mesh,options,filename)
