@@ -263,7 +263,6 @@ integer(in64) :: ii,jj,offset
 open(11,file=filename) 
 
 !write headers
-! write(11,'(A)') '<xml version="1.0"?>'
 write(11,'(A)') '<VTKFile type="UnstructuredGrid" version="0.1" byte_order="LittleEndian">'
 write(11,'(A)') ' <UnstructuredGrid>'
 
