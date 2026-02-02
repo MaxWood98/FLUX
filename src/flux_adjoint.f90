@@ -434,6 +434,7 @@ do clr=1,ncolour
     do vv=1,4 !perturb each conservative variable in all cells of this colour
 
         !perturb variables 
+        !$OMP parallel do 
         do cc=1,mesh_cpx%ncell
             if (mesh_cpx%cells_colour(cc) == clr) then 
                 if (vv == 1) then 
@@ -447,12 +448,18 @@ do clr=1,ncolour
                 end if 
             end if  
         end do 
+        !$OMP end parallel do 
+        !$OMP parallel do 
         do cc=1,mesh_cpx%ncell
             call con2prim_cpx(mesh_cpx%rho(cc),mesh_cpx%u(cc),mesh_cpx%v(cc),mesh_cpx%p(cc),mesh_cpx%e(cc),complex(options%gamma,0.0d0),mesh_cpx%w1(cc),mesh_cpx%w2(cc),mesh_cpx%w3(cc),mesh_cpx%w4(cc))
         end do 
+        !$OMP end parallel do 
 
         !evaluate the residual 
+        !$OMP parallel
         call get_edge_fluxes_cpx(mesh_cpx,options,.False.)
+        !$OMP end parallel 
+        !$OMP parallel do private(ee)
         do cc=1,mesh_cpx%ncell
             pr1c(cc) = complex(0.0d0,0.0d0) 
             pr2c(cc) = complex(0.0d0,0.0d0) 
@@ -465,6 +472,7 @@ do clr=1,ncolour
                 pr4c(cc) = pr4c(cc) + (mesh_cpx%edges_r4(mesh_cpx%cells(cc)%edge(ee)) + mesh_cpx%edges_d4(mesh_cpx%cells(cc)%edge(ee)))*mesh_cpx%cells(cc)%edge_sign(ee)
             end do 
         end do
+        !$OMP end parallel do 
 
         !extract non-zero values and populate the flow jacobian 
         do cc=1,mesh_cpx%ncell
@@ -547,6 +555,7 @@ do clr=1,ncolour
         end do 
 
         !reset variables 
+        !$OMP parallel do 
         do cc=1,mesh_cpx%ncell
             if (mesh_cpx%cells_colour(cc) == clr) then 
                 if (vv == 1) then 
@@ -560,6 +569,7 @@ do clr=1,ncolour
                 end if 
             end if  
         end do 
+        !$OMP end parallel do 
     end do 
 end do 
 
@@ -568,9 +578,11 @@ mesh_cpx%w1 = w10
 mesh_cpx%w2 = w20 
 mesh_cpx%w3 = w30 
 mesh_cpx%w4 = w40 
+!$OMP parallel do 
 do cc=1,mesh_cpx%ncell
     call con2prim_cpx(mesh_cpx%rho(cc),mesh_cpx%u(cc),mesh_cpx%v(cc),mesh_cpx%p(cc),mesh_cpx%e(cc),complex(options%gamma,0.0d0),mesh_cpx%w1(cc),mesh_cpx%w2(cc),mesh_cpx%w3(cc),mesh_cpx%w4(cc))
 end do 
+!$OMP end parallel do 
 return 
 end subroutine build_flow_jacobian_sparse
 
@@ -632,6 +644,7 @@ do clr=1,ncolour
     do vv=1,2 !perturb each coordinate at vertices of this colour
 
         !perturb variables 
+        !$OMP parallel do 
         do cc=1,mesh_cpx%nvertex
             if (mesh_cpx%vertices_colour(cc) == clr) then 
                 if (vv == 1) then 
@@ -641,12 +654,16 @@ do clr=1,ncolour
                 end if 
             end if  
         end do 
+        !$OMP end parallel do 
 
         !update edge geometries 
         call mesh_cpx%get_edges_geometry()
 
         !evaluate the residual 
+        !$OMP parallel
         call get_edge_fluxes_cpx(mesh_cpx,options,.False.)
+        !$OMP end parallel
+        !$OMP parallel do private(ee)
         do cc=1,mesh_cpx%ncell
             pr1c(cc) = complex(0.0d0,0.0d0) 
             pr2c(cc) = complex(0.0d0,0.0d0) 
@@ -659,6 +676,7 @@ do clr=1,ncolour
                 pr4c(cc) = pr4c(cc) + (mesh_cpx%edges_r4(mesh_cpx%cells(cc)%edge(ee)) + mesh_cpx%edges_d4(mesh_cpx%cells(cc)%edge(ee)))*mesh_cpx%cells(cc)%edge_sign(ee)
             end do 
         end do
+        !$OMP end parallel do 
 
         !extract non-zero values and populate the grid jacobian 
         do cc=1,mesh_cpx%nvertex
@@ -710,6 +728,7 @@ do clr=1,ncolour
         end do 
 
         !reset variables 
+        !$OMP parallel do 
         do cc=1,mesh_cpx%nvertex
             if (mesh_cpx%vertices_colour(cc) == clr) then 
                 if (vv == 1) then 
@@ -719,6 +738,7 @@ do clr=1,ncolour
                 end if 
             end if  
         end do 
+        !$OMP end parallel do 
     end do 
 end do 
 return 

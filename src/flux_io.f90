@@ -1,7 +1,7 @@
 !flux 2d io module 
 !max wood
-!version : 0.0.2
-!updated : 30-01-26
+!version : 0.0.4
+!updated : 02-02-26
 
 !module 
 module flux_io
@@ -315,12 +315,14 @@ write(11,'(A)') '    </DataArray>'
 !write cells footer
 write(11,'(A)') '   </Cells>'
 
-!write data 
+!write cell data  ====================
+!write cell data header
 write(11,'(A)') '   <CellData>'
 
 !mach
 write(11,'(A)') '    <DataArray type="Float64" Name="Mach" format="ascii" NumberOfComponents="1">'
 do ii=1,mesh%ncell
+    mesh%mach(ii) = sqrt(mesh%u(ii)**2 + mesh%v(ii)**2)/speed_of_sound(mesh%p(ii),mesh%rho(ii),options%gamma)
     write(11,'(A,E17.10)')'     ',mesh%mach(ii)
 end do 
 write(11,'(A)') '    </DataArray>'
@@ -363,13 +365,53 @@ if (options%mode == 'solve') then
     write(11,'(A)') '    </DataArray>'
 end if 
 
+!write adjoint variables
+if (options%mode == 'adjoint') then 
 
+    !psirho 
+    write(11,'(A)') '    <DataArray type="Float64" Name="psi_rho" format="ascii" NumberOfComponents="1">'
+    do ii=1,mesh%ncell
+        write(11,'(A,E17.10)')'     ',mesh%psi_rho(ii)
+    end do 
+    write(11,'(A)') '    </DataArray>'
 
+    !psiuv 
+    write(11,'(A)') '    <DataArray type="Float64" Name="psi_uv" format="ascii" NumberOfComponents="3">'
+    do ii=1,mesh%ncell
+        write(11,'(A,E17.10,A,E17.10,A,E17.10)')'     ',mesh%psi_u(ii),' ',mesh%psi_v(ii),' ',0.0d0 
+    end do 
+    write(11,'(A)') '    </DataArray>'
 
+    !psie 
+    write(11,'(A)') '    <DataArray type="Float64" Name="psi_e" format="ascii" NumberOfComponents="1">'
+    do ii=1,mesh%ncell
+        write(11,'(A,E17.10)')'     ',mesh%psi_e(ii)
+    end do 
+    write(11,'(A)') '    </DataArray>'
+end if 
 
-
-!write data footer
+!write cell data footer
 write(11,'(A)') '   </CellData>'
+!write cell data  ====================
+
+!write point data  ====================
+!write point data header
+write(11,'(A)') '   <PointData>'
+
+!write adjoint variables
+if (options%mode == 'adjoint') then 
+
+    !vertex derivative 
+    write(11,'(A)') '    <DataArray type="Float64" Name="vertex_derivative" format="ascii" NumberOfComponents="3">'
+    do ii=1,mesh%nvertex
+        write(11,'(A,E17.10,A,E17.10,A,E17.10)')'     ',mesh%vertex_derivative_x(ii),' ',mesh%vertex_derivative_y(ii),' ',0.0d0 
+    end do 
+    write(11,'(A)') '    </DataArray>'
+end if 
+
+!write point data footer
+write(11,'(A)') '   </PointData>'
+!write point data  ====================
 
 !write footers
 write(11,'(A)') '  </Piece>'

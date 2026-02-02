@@ -29,7 +29,7 @@ if (options%cdisplay) then
     write(*,'(A)')'+--------------------------------------------+'
     write(*,'(A)')'|                   flux 2d                  |'
     write(*,'(A)')'|      2d unstructured euler flow solver     |'
-    write(*,'(A)')'|       Version 0.0.4 || 30/01/2026          |'
+    write(*,'(A)')'|       Version 0.0.4 || 02/02/2026          |'
     write(*,'(A)')'|                 Max Wood                   |'
     write(*,'(A)')'|           University of Bristol            |'
     write(*,'(A)')'|    Department of Aerospace Engineering     |'
@@ -72,7 +72,7 @@ if (options%mode == 'solve') then !primal solve
     print *, 'COMPLETE'
 
     !post-process 
-    call write_vtk(mesh,options,'flow.vtk')
+    ! call write_vtk(mesh,options,'flow.vtk')
     call write_vtu(mesh,options,'flow.vtu')
     call write_flow_field('flowfield',mesh)
     call write_forces('forces',mesh)
@@ -80,7 +80,6 @@ elseif (options%mode == 'adjoint') then !adjoint solve
 
     !UPDATE INTEGER TO IN64 FOR ALL METHODS INDEXING INTO SPARSE JACOBIANS TO AVOID OVERFLOW ERRORS
     !ADD ADJOINT DISSIPATION 
-    !UPDATE JACOBIAN ROUTINES TO USE AND PARALELLISM
 
     !adjoint dev =====================
 
@@ -92,7 +91,7 @@ elseif (options%mode == 'adjoint') then !adjoint solve
     print *, 'COMPLETE'
 
     !post-process 
-    call write_vtk(mesh,options,'flow.vtk')
+    ! call write_vtk(mesh,options,'flow.vtk')
     call write_vtu(mesh,options,'flow.vtu')
     call write_gradient('gradient',mesh)
 end if 
