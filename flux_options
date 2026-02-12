@@ -14,7 +14,7 @@ gamma = 1.4
 R = 287.058
 tinf = 288.0
 rhoinf = 1.225
-outflow_pratio = 0.2
+outflow_pratio = 0.8
 
 #solver options
 niter_max = 20000
