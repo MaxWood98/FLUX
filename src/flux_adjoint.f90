@@ -52,10 +52,6 @@ do ee=1,mesh%nedge
         gradc = (wcos*mesh%edges(ee)%dy - wsin*mesh%edges(ee)%dx)*(2.0d0/(options%gamma*options%pinf*options%machinf*options%machinf))
         dcddp(mesh%edges(ee)%c1) = dcddp(mesh%edges(ee)%c1) + gradc
 
-
-
-
-
         !accumulate dJdX x (dcydx -> dcydy = 0)
         dJdX(mesh%edges(ee)%v1) = dJdX(mesh%edges(ee)%v1) + wsin*mesh%cp(mesh%edges(ee)%c1)
         dJdX(mesh%edges(ee)%v2) = dJdX(mesh%edges(ee)%v2) - wsin*mesh%cp(mesh%edges(ee)%c1) 
@@ -798,7 +794,7 @@ implicit none
 
 !variables inout
 type(csc_matrix) :: matrix
-real(dp) :: vector(matrix%nrow),result(matrix%nrow)
+real(dp) :: vector(matrix%nrow),result(matrix%ncol)
 
 !variables local 
 integer(in64) :: ii,jj

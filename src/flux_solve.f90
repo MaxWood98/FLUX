@@ -465,28 +465,28 @@ do ee=1,mesh%nedge
             end if 
         end if 
         call jameson_flux_cpx(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
-    ! elseif (c2 == -3) then !stagnation inflow
-    !     rho1 = mesh%rho(c1)
-    !     u1 = mesh%u(c1)
-    !     v1 = mesh%v(c1)
-    !     p1 = mesh%p(c1)
-    !     e1 = mesh%e(c1)
-    !     call subsonic_stagnation_inflow_bc(rho2,u2,v2,p2,e2,mesh,c1,ee,options)
-    !     call jameson_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4) 
-    ! elseif (c2 == -4) then !pressure outflow 
-    !     rho1 = mesh%rho(c1)
-    !     u1 = mesh%u(c1)
-    !     v1 = mesh%v(c1)
-    !     p1 = mesh%p(c1)
-    !     e1 = mesh%e(c1)
-    !     velnorm = mesh%u(c1)*mesh%edges(ee)%nx + mesh%v(c1)*mesh%edges(ee)%ny
-    !     machnorm = abs(velnorm)/speed_of_sound(mesh%p(c1),mesh%rho(c1),options%gamma)
-    !     if (machnorm .GE. 1.0) then !supersonic 
-    !         call farfield_supersonic_bc_prescribed(rho2,u2,v2,p2,e2,mesh,c1,options,-1)
-    !     else !subsonic 
-    !         call subsonic_pressure_outflow_bc_characteristic(rho2,u2,v2,p2,e2,mesh,c1,ee,options,options%outflow_pratio)
-    !     end if 
-    !     call jameson_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+    elseif (c2 == -3) then !stagnation inflow
+        rho1 = mesh%rho(c1)
+        u1 = mesh%u(c1)
+        v1 = mesh%v(c1)
+        p1 = mesh%p(c1)
+        e1 = mesh%e(c1)
+        call subsonic_stagnation_inflow_bc_cpx(rho2,u2,v2,p2,e2,mesh,c1,ee,options)
+        call jameson_flux_cpx(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4) 
+    elseif (c2 == -4) then !pressure outflow 
+        rho1 = mesh%rho(c1)
+        u1 = mesh%u(c1)
+        v1 = mesh%v(c1)
+        p1 = mesh%p(c1)
+        e1 = mesh%e(c1)
+        velnorm = mesh%u(c1)*mesh%edges(ee)%nx + mesh%v(c1)*mesh%edges(ee)%ny
+        machnorm = sqrt(velnorm**2)/speed_of_sound_cpx(mesh%p(c1),mesh%rho(c1),gamma_cpx)
+        if (real(machnorm,dp) .GE. 1.0) then !supersonic 
+            call farfield_supersonic_bc_prescribed_cpx(rho2,u2,v2,p2,e2,mesh,c1,options,-1)
+        else !subsonic 
+            call subsonic_pressure_outflow_bc_characteristic_cpx(rho2,u2,v2,p2,e2,mesh,c1,ee,options,complex(options%outflow_pratio,0.0d0))
+        end if 
+        call jameson_flux_cpx(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
     else 
 
         !todo: add other boundary conditions here

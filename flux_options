@@ -5,11 +5,11 @@
 console_display = yes
 
 #mesh path 
-meshpath = grid_cell_kh
+meshpath = grid_cell_duct
 
 #flow conditions 
 aoadeg = 0.0
-machinf = 2.0
+machinf = 0.4
 gamma = 1.4
 R = 287.058
 tinf = 288.0
@@ -22,8 +22,8 @@ cfl = 2.0
 k2 = 0.05 
 k4 = 0.01
 flux_method = vanleer
-num_threads = 16
+num_threads = 8
 residual_convtol = -8.0 
 
 #Runge-Kutta stage dissipation evaluation tags 1 2 3 4
-RKstagediss_eval = 1 0 0 0
+RKstagediss_eval = 0 0 0 0
