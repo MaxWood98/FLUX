@@ -1,7 +1,7 @@
 !flux 2d adjoint module 
 !max wood
-!version : 0.0.2
-!updated : 01-12-25
+!version : 0.0.3
+!updated : 12-02-26
 
 module flux_adjoint
 use flux_io
@@ -9,7 +9,176 @@ use flux_solve
 use flux_data_methods
 contains 
 
-!dCddW ===============
+!dMdotdW (mass flux objective) ===============
+subroutine mflux_objective(mesh,options,dJdW,dJdX)
+implicit none 
+
+!variables - inout
+type(flux_mesh) :: mesh 
+type(flux_options) :: options 
+real(dp), dimension(:), allocatable :: dJdW,dJdX
+
+!variables - local 
+integer(in32) :: cc 
+real(dp) :: dmfluxw1,dmfluxw2,dmfluxw3,dmfluxw4
+
+!allocate the jacobians
+allocate(dJdW(4*mesh%ncell))
+allocate(dJdX(2*mesh%nvertex))
+dJdW(:) = 0.0d0 
+dJdX(:) = 0.0d0 !this is zero on surfaces as mass flux is not a directly surface driven property (technically non-zero on the measurment surface but we will ignore this)
+
+!get the conservative variables
+do cc=1,mesh%ncell
+    call prim2con(mesh%rho(cc),mesh%u(cc),mesh%v(cc),mesh%p(cc),options%gamma,mesh%w1(cc),mesh%w2(cc),mesh%w3(cc),mesh%w4(cc))
+    mesh%cp(cc) = pressure_coefficient(mesh%p(cc),options)
+end do 
+
+!evaluate the jacobian
+do cc=1,mesh%ncell
+
+    !evaluate the primitive variable gradients
+    call get_drhodw_dvelndw(mesh,options,cc,-3,dmfluxw1,dmfluxw2,dmfluxw3,dmfluxw4)
+
+    !populate dJdW
+    dJdW(cc) = dmfluxw1
+    dJdW(cc+mesh%ncell) = dmfluxw2
+    dJdW(cc+2*mesh%ncell) = dmfluxw3
+    dJdW(cc+3*mesh%ncell) = dmfluxw4
+end do 
+return 
+end subroutine mflux_objective
+
+!get drhodw and dvelndw in cell c for edges with the specified boundary condition ===============
+subroutine get_drhodw_dvelndw(mesh,options,c,bc,dmfluxw1,dmfluxw2,dmfluxw3,dmfluxw4)
+implicit none 
+
+!variables - inout
+integer(in32) :: c,bc
+! real(dp) :: grhow1,grhow2,grhow3,grhow4,gvelw1,gvelw2,gvelw3,gvelw4
+
+real(dp) :: dmfluxw1,dmfluxw2,dmfluxw3,dmfluxw4
+
+type(flux_mesh) :: mesh 
+type(flux_options) :: options 
+
+!variables - local 
+integer(in32) :: ee 
+integer(in32) :: etgt
+real(dp) :: w1,w2,w3,w4,h
+! real(dp) :: grho1,grho2,grho3,grho4
+! real(dp) :: gu1,gu2,gu3,gu4
+! real(dp) :: gv1,gv2,gv3,gv4
+complex(dp) :: gmf1,gmf2,gmf3,gmf4
+complex(dp) :: rhoc,uc,vc,pc,ec,gammac,velc
+
+!set the complex step stepsize
+h = 1e-40_dp  
+
+!get complex gamma
+gammac = complex(options%gamma,0.0d0)
+
+!extract the conservative variables 
+w1 = mesh%w1(c)
+w2 = mesh%w2(c)
+w3 = mesh%w3(c)
+w4 = mesh%w4(c)
+
+!evaluate the gradient components
+gmf1 = 0.0d0 
+call con2prim_cpx(rhoc,uc,vc,pc,ec,gammac,complex(w1,h),complex(w2,0.0d0),complex(w3,0.0d0),complex(w4,0.0d0))
+do ee=1,mesh%cells(c)%nedge
+    etgt = mesh%cells(c)%edge(ee)
+    if (mesh%edges(etgt)%c2 == bc) then 
+        velc = uc*complex(mesh%edges(etgt)%nx,0.0d0) + vc*complex(mesh%edges(etgt)%ny,0.0d0)
+        gmf1 = gmf1 + rhoc*velc*complex(mesh%edges(etgt)%length,0.0d0)
+    end if 
+end do 
+dmfluxw1 = aimag(gmf1)/h
+
+gmf2 = 0.0d0 
+call con2prim_cpx(rhoc,uc,vc,pc,ec,gammac,complex(w1,0.0d0),complex(w2,h),complex(w3,0.0d0),complex(w4,0.0d0))
+do ee=1,mesh%cells(c)%nedge
+    etgt = mesh%cells(c)%edge(ee)
+    if (mesh%edges(etgt)%c2 == bc) then 
+        velc = uc*complex(mesh%edges(etgt)%nx,0.0d0) + vc*complex(mesh%edges(etgt)%ny,0.0d0)
+        gmf2 = gmf2 + rhoc*velc*complex(mesh%edges(etgt)%length,0.0d0)
+    end if 
+end do 
+dmfluxw2 = aimag(gmf2)/h
+
+gmf3 = 0.0d0 
+call con2prim_cpx(rhoc,uc,vc,pc,ec,gammac,complex(w1,0.0d0),complex(w2,0.0d0),complex(w3,h),complex(w4,0.0d0))
+do ee=1,mesh%cells(c)%nedge
+    etgt = mesh%cells(c)%edge(ee)
+    if (mesh%edges(etgt)%c2 == bc) then 
+        velc = uc*complex(mesh%edges(etgt)%nx,0.0d0) + vc*complex(mesh%edges(etgt)%ny,0.0d0)
+        gmf3 = gmf3 + rhoc*velc*complex(mesh%edges(etgt)%length,0.0d0)
+    end if 
+end do 
+dmfluxw3 = aimag(gmf3)/h
+
+gmf4 = 0.0d0 
+call con2prim_cpx(rhoc,uc,vc,pc,ec,gammac,complex(w1,0.0d0),complex(w2,0.0d0),complex(w3,0.0d0),complex(w4,h))
+do ee=1,mesh%cells(c)%nedge
+    etgt = mesh%cells(c)%edge(ee)
+    if (mesh%edges(etgt)%c2 == bc) then 
+        velc = uc*complex(mesh%edges(etgt)%nx,0.0d0) + vc*complex(mesh%edges(etgt)%ny,0.0d0)
+        gmf4 = gmf4 + rhoc*velc*complex(mesh%edges(etgt)%length,0.0d0)
+    end if 
+end do 
+dmfluxw4 = aimag(gmf4)/h
+
+
+
+! grho1 = aimag(rhoc)/h
+! gu1 = aimag(uc)/h
+! gv1 = aimag(vc)/h
+! call con2prim_cpx(rhoc,uc,vc,pc,ec,gammac,complex(w1,0.0d0),complex(w2,h),complex(w3,0.0d0),complex(w4,0.0d0))
+! ! grho2 = aimag(rhoc)/h
+! ! gu2 = aimag(uc)/h
+! ! gv2 = aimag(vc)/h
+! call con2prim_cpx(rhoc,uc,vc,pc,ec,gammac,complex(w1,0.0d0),complex(w2,0.0d0),complex(w3,h),complex(w4,0.0d0))
+! ! grho3 = aimag(rhoc)/h
+! ! gu3 = aimag(uc)/h
+! ! gv3 = aimag(vc)/h
+! call con2prim_cpx(rhoc,uc,vc,pc,ec,gammac,complex(w1,0.0d0),complex(w2,0.0d0),complex(w3,0.0d0),complex(w4,h))
+! grho4 = aimag(rhoc)/h
+! gu4 = aimag(uc)/h
+! gv4 = aimag(vc)/h
+
+! !evaluate the sum of the gradients over all target edges in the cell 
+! gvelw1 = 0.0d0 
+! gvelw2 = 0.0d0 
+! gvelw3 = 0.0d0 
+! gvelw4 = 0.0d0 
+! grhow1 = 0.0d0 
+! grhow2 = 0.0d0 
+! grhow3 = 0.0d0 
+! grhow4 = 0.0d0 
+! do ee=1,mesh%cells(c)%nedge
+!     etgt = mesh%cells(c)%edge(ee)
+!     if (mesh%edges(etgt)%c2 == bc) then 
+!         gvelw1 = gvelw1 + (gu1*mesh%edges(etgt)%nx + gv1*mesh%edges(etgt)%ny)*mesh%edges(etgt)%length*mesh%rho(c)*mesh%cells(c)%edge_sign(ee)
+!         gvelw2 = gvelw2 + (gu2*mesh%edges(etgt)%nx + gv2*mesh%edges(etgt)%ny)*mesh%edges(etgt)%length*mesh%rho(c)*mesh%cells(c)%edge_sign(ee)
+!         gvelw3 = gvelw3 + (gu3*mesh%edges(etgt)%nx + gv3*mesh%edges(etgt)%ny)*mesh%edges(etgt)%length*mesh%rho(c)*mesh%cells(c)%edge_sign(ee)
+!         gvelw4 = gvelw4 + (gu4*mesh%edges(etgt)%nx + gv4*mesh%edges(etgt)%ny)*mesh%edges(etgt)%length*mesh%rho(c)*mesh%cells(c)%edge_sign(ee)
+
+
+!         grhow1 = grhow1 + grho1*(mesh%u(c)*mesh%edges(etgt)%nx + mesh%v(c)*mesh%edges(etgt)%ny)*mesh%edges(etgt)%length*mesh%cells(c)%edge_sign(ee)
+!         grhow2 = grhow2 + grho2*(mesh%u(c)*mesh%edges(etgt)%nx + mesh%v(c)*mesh%edges(etgt)%ny)*mesh%edges(etgt)%length*mesh%cells(c)%edge_sign(ee)
+!         grhow3 = grhow3 + grho3*(mesh%u(c)*mesh%edges(etgt)%nx + mesh%v(c)*mesh%edges(etgt)%ny)*mesh%edges(etgt)%length*mesh%cells(c)%edge_sign(ee)
+!         grhow4 = grhow4 + grho4*(mesh%u(c)*mesh%edges(etgt)%nx + mesh%v(c)*mesh%edges(etgt)%ny)*mesh%edges(etgt)%length*mesh%cells(c)%edge_sign(ee)
+!     end if 
+! end do 
+
+!debug fd check --
+!
+!debug fd check --
+return 
+end subroutine get_drhodw_dvelndw
+
+!dCddW (drag objective) ===============
 subroutine cd_objective(mesh,options,dJdW,dJdX)
 implicit none 
 
@@ -1001,9 +1170,16 @@ call build_flow_jacobian_sparse(mesh_cpx,options,dRdW_sp)
 
 !evaluate the flow objective jacobian 
 if (options%cdisplay) then
-    write(*,'(A)') '--> evaluating the objective gradient'
+    write(*,'(A,A)') '--> evaluating the objective gradient: ',options%adjoint_objective
 end if 
-call cd_objective(mesh,options,dJdW,dJdX)
+if (options%adjoint_objective == 'cd') then 
+    call cd_objective(mesh,options,dJdW,dJdX)
+elseif (options%adjoint_objective == 'mflux') then 
+    call mflux_objective(mesh,options,dJdW,dJdX)
+else
+    write(*,'(A,A)') '** invalid adjoint objective specified: ',options%adjoint_objective
+    stop
+end if 
 
 !evalaute the adjoint timesteps for each cell
 if (options%cdisplay) then

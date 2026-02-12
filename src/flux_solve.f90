@@ -1,7 +1,7 @@
 !flux 2d flow solve module 
 !max wood
-!version : 0.0.2
-!updated : 11-10-25
+!version : 0.0.3
+!updated : 12-02-26
 
 !module 
 module flux_solve
@@ -67,10 +67,10 @@ if (options%cdisplay) then
     ! write(*,'(A,A,A)') '    {speed of sound (m/s): ',real2F0_Xstring(sosinf_AC,6_in64),'}' 
     ! write(*,'(A,A,A)') '    {velocity (m/s): ',real2F0_Xstring(options%machinf*sosinf_AC,6_in64),'}' 
     write(*,'(A)') '    scaled freestream flow properties: '
-    write(*,'(A,A,A)') '    {pressure : ',real2F0_Xstring(options%pinf,6_in64),'}' 
-    write(*,'(A,A,A)') '    {density : ',real2F0_Xstring(options%rhoinf,6_in64),'}'
-    write(*,'(A,A,A)') '    {speed of sound : ',real2F0_Xstring(options%cinf,6_in64),'}'
-    write(*,'(A,A,A)') '    {velocity : ',real2F0_Xstring(options%velinf,6_in64),'}'
+    write(*,'(A,A,A)') '    {pressure: ',real2F0_Xstring(options%pinf,6_in64),'}' 
+    write(*,'(A,A,A)') '    {density: ',real2F0_Xstring(options%rhoinf,6_in64),'}'
+    write(*,'(A,A,A)') '    {speed of sound: ',real2F0_Xstring(options%cinf,6_in64),'}'
+    write(*,'(A,A,A)') '    {velocity: ',real2F0_Xstring(options%velinf,6_in64),'}'
 end if 
 return 
 end subroutine flux_flow_initialise

@@ -71,6 +71,7 @@ call set_real_opt(options%cfl,fh,'cfl')
 call set_real_opt(options%k2,fh,'k2')
 call set_real_opt(options%k4,fh,'k4')
 call set_str_opt(options%flux_method,fh,'flux_method')
+call set_str_opt(options%adjoint_objective,fh,'adjoint_objective')
 itemtemp = -1 
 call set_int_opt(itemtemp,fh,'num_threads')
 if (itemtemp .GE. 0) then 

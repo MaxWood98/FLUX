@@ -1,7 +1,7 @@
 !flux 2d data and methods module 
 !max wood
-!version : 0.0.1
-!updated : 28-03-25
+!version : 0.0.2
+!updated : 12-02-26
 
 !module 
 module flux_data_methods
@@ -28,7 +28,7 @@ type flux_options
     integer(in32) :: niter_max,rk_niter,num_threads
     real(dp) :: cfl,aoadeg,aoarad,gamma,R,k2,k4,residual_convtol,outflow_pratio
     real(dp) :: machinf,tinf,rhoinf,cinf,pinf,velinf,uinf,vinf,p0inf,rho0inf,t0inf
-    character(len=:), allocatable :: meshpath,meshname,mode,flux_method
+    character(len=:), allocatable :: meshpath,meshname,mode,flux_method,adjoint_objective
 end type flux_options 
 
 !vertex types
@@ -571,6 +571,9 @@ options%k4 = 0.1d0
 options%num_threads = 1
 options%residual_convtol = -8.0 
 options%flux_method = 'vanleer'
+
+!adjoint options
+options%adjoint_objective = 'cd'
 
 !rk options
 options%rk_niter = 4
