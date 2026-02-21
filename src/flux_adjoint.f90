@@ -456,7 +456,6 @@ w30 = mesh%w3
 w40 = mesh%w4 
 
 
-
 call get_edge_fluxes(mesh,options,.False.)
 do cc=1,mesh%ncell
     r1 = 0.0d0 
@@ -474,8 +473,6 @@ do cc=1,mesh%ncell
     r30(cc) = r3
     r40(cc) = r4
 end do 
-
-
 
 
 !allocate the flow jacobian 

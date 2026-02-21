@@ -5,11 +5,11 @@
 console_display = yes
 
 #mesh path 
-meshpath = grid_cell_duct
+meshpath = grid_cell
 
 #flow conditions 
-aoadeg = 0.0
-machinf = 0.4
+aoadeg = 10.0
+machinf = 0.8
 gamma = 1.4
 R = 287.058
 tinf = 288.0
@@ -17,7 +17,7 @@ rhoinf = 1.225
 outflow_pratio = 0.8
 
 #solver options
-niter_max = 20000
+niter_max = 10000
 cfl = 2.0
 k2 = 0.05 
 k4 = 0.01
@@ -29,4 +29,4 @@ residual_convtol = -8.0
 RKstagediss_eval = 1 0 0 0
 
 #Adjoint options 
-adjoint_objective = mflux
+adjoint_objective = cd

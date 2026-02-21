@@ -274,7 +274,7 @@ write(11,'(A,I0,A,I0,A)') '  <Piece NumberOfPoints="',mesh%nvertex,'" NumberOfCe
 write(11,'(A)') '   <Points>'
 write(11,'(A)') '    <DataArray type="Float64" NumberOfComponents="3" Format="ascii">'
 do ii=1,mesh%nvertex
-    write(11,'(A,E17.10,A,E17.10,A,E17.10)') '     ',mesh%vertices(ii)%coordinate(1),' ',mesh%vertices(ii)%coordinate(2),' ',0.0d0
+    write(11,'(A,E23.16,A,E23.16,A,E23.16)') '     ',mesh%vertices(ii)%coordinate(1),' ',mesh%vertices(ii)%coordinate(2),' ',0.0d0
 end do 
 write(11,'(A)') '    </DataArray>'
 write(11,'(A)') '   </Points>'
@@ -324,7 +324,7 @@ write(11,'(A)') '   <CellData>'
 write(11,'(A)') '    <DataArray type="Float64" Name="Mach" format="ascii" NumberOfComponents="1">'
 do ii=1,mesh%ncell
     mesh%mach(ii) = sqrt(mesh%u(ii)**2 + mesh%v(ii)**2)/speed_of_sound(mesh%p(ii),mesh%rho(ii),options%gamma)
-    write(11,'(A,E17.10)')'     ',mesh%mach(ii)
+    write(11,'(A,E23.16)')'     ',mesh%mach(ii)
 end do 
 write(11,'(A)') '    </DataArray>'
 
@@ -332,28 +332,28 @@ write(11,'(A)') '    </DataArray>'
 write(11,'(A)') '    <DataArray type="Float64" Name="Cp" format="ascii" NumberOfComponents="1">'
 do ii=1,mesh%ncell
     mesh%cp(ii) = pressure_coefficient(mesh%p(ii),options)
-    write(11,'(A,E17.10)')'     ',mesh%cp(ii)
+    write(11,'(A,E23.16)')'     ',mesh%cp(ii)
 end do 
 write(11,'(A)') '    </DataArray>'
 
 !p
 write(11,'(A)') '    <DataArray type="Float64" Name="Pressure" format="ascii" NumberOfComponents="1">'
 do ii=1,mesh%ncell
-    write(11,'(A,E17.10)')'     ',mesh%p(ii)
+    write(11,'(A,E23.16)')'     ',mesh%p(ii)
 end do 
 write(11,'(A)') '    </DataArray>'
 
 !rho 
 write(11,'(A)') '    <DataArray type="Float64" Name="Density" format="ascii" NumberOfComponents="1">'
 do ii=1,mesh%ncell
-    write(11,'(A,E17.10)')'     ',mesh%rho(ii)
+    write(11,'(A,E23.16)')'     ',mesh%rho(ii)
 end do 
 write(11,'(A)') '    </DataArray>'
 
 !velocity 
 write(11,'(A)') '    <DataArray type="Float64" Name="Velocity" format="ascii" NumberOfComponents="3">'
 do ii=1,mesh%ncell
-    write(11,'(A,E17.10,A,E17.10,A,E17.10)')'     ',mesh%u(ii),' ',mesh%v(ii),' ',0.0d0 
+    write(11,'(A,E23.16,A,E23.16,A,E23.16)')'     ',mesh%u(ii),' ',mesh%v(ii),' ',0.0d0 
 end do 
 write(11,'(A)') '    </DataArray>'
 
@@ -361,7 +361,7 @@ write(11,'(A)') '    </DataArray>'
 if (options%mode == 'solve') then 
     write(11,'(A)') '    <DataArray type="Float64" Name="Density Resdidual" format="ascii" NumberOfComponents="1">'
     do ii=1,mesh%ncell
-        write(11,'(A,E17.10)')'     ',mesh%residual(ii)
+        write(11,'(A,E23.16)')'     ',mesh%residual(ii)
     end do 
     write(11,'(A)') '    </DataArray>'
 end if 
@@ -372,21 +372,21 @@ if (options%mode == 'adjoint') then
     !psirho 
     write(11,'(A)') '    <DataArray type="Float64" Name="psi_rho" format="ascii" NumberOfComponents="1">'
     do ii=1,mesh%ncell
-        write(11,'(A,E17.10)')'     ',mesh%psi_rho(ii)
+        write(11,'(A,E23.16)')'     ',mesh%psi_rho(ii)
     end do 
     write(11,'(A)') '    </DataArray>'
 
     !psiuv 
     write(11,'(A)') '    <DataArray type="Float64" Name="psi_uv" format="ascii" NumberOfComponents="3">'
     do ii=1,mesh%ncell
-        write(11,'(A,E17.10,A,E17.10,A,E17.10)')'     ',mesh%psi_u(ii),' ',mesh%psi_v(ii),' ',0.0d0 
+        write(11,'(A,E23.16,A,E23.16,A,E23.16)')'     ',mesh%psi_u(ii),' ',mesh%psi_v(ii),' ',0.0d0 
     end do 
     write(11,'(A)') '    </DataArray>'
 
     !psie 
     write(11,'(A)') '    <DataArray type="Float64" Name="psi_e" format="ascii" NumberOfComponents="1">'
     do ii=1,mesh%ncell
-        write(11,'(A,E17.10)')'     ',mesh%psi_e(ii)
+        write(11,'(A,E23.16)')'     ',mesh%psi_e(ii)
     end do 
     write(11,'(A)') '    </DataArray>'
 end if 
@@ -405,7 +405,7 @@ if (options%mode == 'adjoint') then
     !vertex derivative 
     write(11,'(A)') '    <DataArray type="Float64" Name="vertex_derivative" format="ascii" NumberOfComponents="3">'
     do ii=1,mesh%nvertex
-        write(11,'(A,E17.10,A,E17.10,A,E17.10)')'     ',mesh%vertex_derivative_x(ii),' ',mesh%vertex_derivative_y(ii),' ',0.0d0 
+        write(11,'(A,E23.16,A,E23.16,A,E23.16)')'     ',mesh%vertex_derivative_x(ii),' ',mesh%vertex_derivative_y(ii),' ',0.0d0 
     end do 
     write(11,'(A)') '    </DataArray>'
 end if 
@@ -451,7 +451,7 @@ write(11,'(A)') ''
 !write vertices
 write(11,'(A,I0,A)') 'POINTS ',mesh%nvertex,' double'
 do ii=1,mesh%nvertex
-    write(11,'(E17.10,A,E17.10,A,E17.10)') mesh%vertices(ii)%coordinate(1),' ',mesh%vertices(ii)%coordinate(2),' ',0.0d0
+    write(11,'(E23.16,A,E23.16,A,E23.16)') mesh%vertices(ii)%coordinate(1),' ',mesh%vertices(ii)%coordinate(2),' ',0.0d0
 end do 
 write(11,'(A)') ''
 
@@ -482,45 +482,45 @@ write(11,'(A)') 'SCALARS cp double' !cp
 write(11,'(A)') 'LOOKUP_TABLE default'
 do ii=1,mesh%ncell
     mesh%cp(ii) = pressure_coefficient(mesh%p(ii),options)
-    write(11,'(E17.10)') mesh%cp(ii)
+    write(11,'(E23.16)') mesh%cp(ii)
 end do 
 
 write(11,'(A)') 'SCALARS p double' !p
 write(11,'(A)') 'LOOKUP_TABLE default'
 do ii=1,mesh%ncell
-    write(11,'(E17.10)') mesh%p(ii)
+    write(11,'(E23.16)') mesh%p(ii)
 end do 
 
 write(11,'(A)') 'SCALARS rho double' !rho
 write(11,'(A)') 'LOOKUP_TABLE default'
 do ii=1,mesh%ncell
-    write(11,'(E17.10)') mesh%rho(ii)
+    write(11,'(E23.16)') mesh%rho(ii)
 end do 
 
 write(11,'(A)') 'SCALARS mach double' !mach
 write(11,'(A)') 'LOOKUP_TABLE default'
 do ii=1,mesh%ncell
     mesh%mach(ii) = sqrt(mesh%u(ii)**2 + mesh%v(ii)**2)/speed_of_sound(mesh%p(ii),mesh%rho(ii),options%gamma)
-    write(11,'(E17.10)') mesh%mach(ii)
+    write(11,'(E23.16)') mesh%mach(ii)
 end do 
 
 write(11,'(A)') 'SCALARS u double' !u
 write(11,'(A)') 'LOOKUP_TABLE default'
 do ii=1,mesh%ncell
-    write(11,'(E17.10)') mesh%u(ii)
+    write(11,'(E23.16)') mesh%u(ii)
 end do 
 
 write(11,'(A)') 'SCALARS v double' !v
 write(11,'(A)') 'LOOKUP_TABLE default'
 do ii=1,mesh%ncell
-    write(11,'(E17.10)') mesh%v(ii)
+    write(11,'(E23.16)') mesh%v(ii)
 end do 
 
 if (options%mode == 'solve') then 
     write(11,'(A)') 'SCALARS density_residual double' !rhores
     write(11,'(A)') 'LOOKUP_TABLE default'
     do ii=1,mesh%ncell
-        write(11,'(E17.10)') mesh%residual(ii)
+        write(11,'(E23.16)') mesh%residual(ii)
     end do 
 end if 
 
@@ -536,25 +536,25 @@ if (options%mode == 'adjoint') then
     write(11,'(A)') 'SCALARS psi_rho double' !psi_rho
     write(11,'(A)') 'LOOKUP_TABLE default'
     do ii=1,mesh%ncell
-        write(11,'(E17.10)') mesh%psi_rho(ii)
+        write(11,'(E23.16)') mesh%psi_rho(ii)
     end do 
 
     write(11,'(A)') 'SCALARS psi_u double' !psi_u
     write(11,'(A)') 'LOOKUP_TABLE default'
     do ii=1,mesh%ncell
-        write(11,'(E17.10)') mesh%psi_u(ii)
+        write(11,'(E23.16)') mesh%psi_u(ii)
     end do 
 
     write(11,'(A)') 'SCALARS psi_v double' !psi_v
     write(11,'(A)') 'LOOKUP_TABLE default'
     do ii=1,mesh%ncell
-        write(11,'(E17.10)') mesh%psi_v(ii)
+        write(11,'(E23.16)') mesh%psi_v(ii)
     end do 
 
     write(11,'(A)') 'SCALARS psi_e double' !psi_e
     write(11,'(A)') 'LOOKUP_TABLE default'
     do ii=1,mesh%ncell
-        write(11,'(E17.10)') mesh%psi_e(ii)
+        write(11,'(E23.16)') mesh%psi_e(ii)
     end do 
 
     write(11,'(A,I0)') 'POINT_DATA ',mesh%nvertex
@@ -568,18 +568,18 @@ if (options%mode == 'adjoint') then
     write(11,'(A)') 'SCALARS vertex_derivative_x double' !vertex derivative x
     write(11,'(A)') 'LOOKUP_TABLE default'
     do ii=1,mesh%nvertex
-        write(11,'(E17.10)') mesh%vertex_derivative_x(ii)
+        write(11,'(E23.16)') mesh%vertex_derivative_x(ii)
     end do 
 
     write(11,'(A)') 'SCALARS vertex_derivative_y double' !vertex derivative y
     write(11,'(A)') 'LOOKUP_TABLE default'
     do ii=1,mesh%nvertex
-        write(11,'(E17.10)') mesh%vertex_derivative_y(ii)
+        write(11,'(E23.16)') mesh%vertex_derivative_y(ii)
     end do 
 
     write(11,'(A)') 'VECTORS vertex_derivative double' !vertex derivative 
     do ii=1,mesh%nvertex
-        write(11,'(E17.10,A,E17.10,A,E17.10)') mesh%vertex_derivative_x(ii),' ',mesh%vertex_derivative_y(ii),' ',0.0d0
+        write(11,'(E23.16,A,E23.16,A,E23.16)') mesh%vertex_derivative_x(ii),' ',mesh%vertex_derivative_y(ii),' ',0.0d0
     end do 
 end if 
 
@@ -602,7 +602,7 @@ integer(in32) :: cc
 !write flow data 
 open(11,file=filename) 
 do cc=1,mesh%ncell
-    write(11,'(E17.10,A,E17.10,A,E17.10,A,E17.10,A,E17.10)') mesh%rho(cc),' ',mesh%u(cc),' ',mesh%v(cc),' ',mesh%p(cc),' ',mesh%e(cc)
+    write(11,'(E23.16,A,E23.16,A,E23.16,A,E23.16,A,E23.16)') mesh%rho(cc),' ',mesh%u(cc),' ',mesh%v(cc),' ',mesh%p(cc),' ',mesh%e(cc)
 end do 
 close(11)
 return 
@@ -642,7 +642,7 @@ integer(in32) :: vv
 !write
 open(11,file=filename) 
 do vv=1,mesh%nvertex
-    write(11,'(E17.10,A,E17.10)') mesh%vertex_derivative_x(vv),' ',mesh%vertex_derivative_y(vv)
+    write(11,'(E23.16,A,E23.16)') mesh%vertex_derivative_x(vv),' ',mesh%vertex_derivative_y(vv)
 end do 
 close(11)
 return 
@@ -658,8 +658,8 @@ type(flux_mesh) :: mesh
 
 !write
 open(11,file=filename) 
-write(11,'(A,E17.10)') 'cl = ',mesh%cl
-write(11,'(A,E17.10)') 'cd = ',mesh%cd
+write(11,'(A,E23.16)') 'cl = ',mesh%cl
+write(11,'(A,E23.16)') 'cd = ',mesh%cd
 close(11)
 return 
 end subroutine write_forces
