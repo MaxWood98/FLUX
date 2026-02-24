@@ -7,6 +7,7 @@ module flux_adjoint
 use flux_io
 use flux_solve
 use flux_data_methods
+use ieee_arithmetic
 contains 
 
 !dMdotdW (mass flux objective) ===============
@@ -1270,6 +1271,9 @@ allocate(mesh%psi_rho(mesh%ncell))
 allocate(mesh%psi_u(mesh%ncell))
 allocate(mesh%psi_v(mesh%ncell))
 allocate(mesh%psi_e(mesh%ncell))
+if (nanflag) then 
+    mesh%psi = ieee_value(1.0d0,ieee_quiet_nan)
+end if 
 mesh%psi_rho = mesh%psi(1:mesh%ncell)
 mesh%psi_u = mesh%psi(mesh%ncell+1:2*mesh%ncell)
 mesh%psi_v = mesh%psi(2*mesh%ncell+1:3*mesh%ncell)
