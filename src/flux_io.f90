@@ -1,7 +1,7 @@
 !flux 2d io module 
 !max wood
-!version : 0.0.4
-!updated : 02-02-26
+!version : 0.0.5
+!updated : 02-03-26
 
 !module 
 module flux_io
@@ -660,6 +660,7 @@ type(flux_mesh) :: mesh
 open(11,file=filename) 
 write(11,'(A,E23.16)') 'cl = ',mesh%cl
 write(11,'(A,E23.16)') 'cd = ',mesh%cd
+write(11,'(A,E23.16)') 'rhores = ',mesh%rhores
 close(11)
 return 
 end subroutine write_forces

@@ -1,7 +1,7 @@
 !flux 2d adjoint module 
 !max wood
-!version : 0.0.3
-!updated : 12-02-26
+!version : 0.0.4
+!updated : 02-03-26
 
 module flux_adjoint
 use flux_io
@@ -593,7 +593,9 @@ dRdW%col_pointer(1) = 1
 nblock = (sum(mesh_cpx%cells_nadj) + mesh_cpx%ncell)*4 
 ncolour = maxval(mesh_cpx%cells_colour)
 do clr=1,ncolour
-    write(*,'(A,I0,A,I0)') '    colour: ',clr,'/',ncolour
+    if (options%cdisplay) then 
+        write(*,'(A,I0,A,I0)') '    colour: ',clr,'/',ncolour
+    end if 
     do vv=1,4 !perturb each conservative variable in all cells of this colour
 
         !perturb variables 
@@ -803,7 +805,9 @@ dRdX%col_pointer(1) = 1
 nblock = sum(mesh_cpx%vertices%ncell)*4 
 ncolour = maxval(mesh_cpx%vertices_colour)
 do clr=1,ncolour
-    write(*,'(A,I0,A,I0)') '    colour: ',clr,'/',ncolour
+    if (options%cdisplay) then 
+        write(*,'(A,I0,A,I0)') '    colour: ',clr,'/',ncolour
+    end if 
     do vv=1,2 !perturb each coordinate at vertices of this colour
 
         !perturb variables 

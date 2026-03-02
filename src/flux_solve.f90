@@ -1,7 +1,7 @@
 !flux 2d flow solve module 
 !max wood
-!version : 0.0.3
-!updated : 12-02-26
+!version : 0.0.4
+!updated : 02-03-26
 
 !module 
 module flux_solve
@@ -156,6 +156,7 @@ do iteration=1,options%niter_max
         rhores0 = sqrt(sum((mesh%residual)**2))
     end if 
     rhores = log10(sqrt(sum((mesh%residual)**2))/rhores0)
+    mesh%rhores = rhores
     if (rhores .LE. options%residual_convtol) then 
         resconv = .true.
     end if 

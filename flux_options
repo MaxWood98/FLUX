@@ -17,7 +17,7 @@ rhoinf = 1.225
 outflow_pratio = 0.8
 
 #solver options
-niter_max = 10000
+niter_max = 10
 cfl = 2.0
 k2 = 0.05 
 k4 = 0.01

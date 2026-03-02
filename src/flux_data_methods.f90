@@ -74,7 +74,7 @@ end type flux_cell_cpx
 !mesh type 
 type flux_mesh
     integer(in32) :: nvertex,nedge,ncell 
-    real(dp) :: cx,cy,cl,cd,cm,mflux_in,mflux_out
+    real(dp) :: cx,cy,cl,cd,cm,mflux_in,mflux_out,rhores
     integer(in32), dimension(:), allocatable :: vertices_colour,cells_colour,cells_nadj
     real(dp), dimension(:), allocatable :: cells_specrad,cells_volume,cells_dt,cells_psensor
     real(dp), dimension(:), allocatable :: edges_specrad

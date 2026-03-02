@@ -29,7 +29,7 @@ if (options%cdisplay) then
     write(*,'(A)')'+--------------------------------------------+'
     write(*,'(A)')'|                   flux 2d                  |'
     write(*,'(A)')'|      2d unstructured euler flow solver     |'
-    write(*,'(A)')'|       Version 0.0.6 || 21/02/2026          |'
+    write(*,'(A)')'|       Version 0.0.7 || 02/03/2026          |'
     write(*,'(A)')'|                 Max Wood                   |'
     write(*,'(A)')'|           University of Bristol            |'
     write(*,'(A)')'|    Department of Aerospace Engineering     |'
@@ -69,7 +69,6 @@ if (options%mode == 'solve') then !primal solve
         write(*,'(A)') '--> solving'
     end if 
     call flux_flow_solve(mesh,options)
-    print *, 'COMPLETE'
 
     !post-process 
     ! call write_vtk(mesh,options,'flow.vtk')
@@ -88,12 +87,14 @@ elseif (options%mode == 'adjoint') then !adjoint solve
 
     !adjoint solve 
     call flux_adjoint_solve(mesh,options)
-    print *, 'COMPLETE'
 
     !post-process 
     ! call write_vtk(mesh,options,'flow.vtk')
     call write_vtu(mesh,options,'flow.vtu')
     call write_gradient('gradient',mesh)
+end if 
+if (options%cdisplay) then
+    print *, 'COMPLETE'
 end if 
 stop 
 end program flux2d 
