@@ -1,7 +1,7 @@
 !flux 2d - a cell based euler solver
 !max wood
-!version : 0.0.1
-!updated : 28-03-25
+!version : 0.0.7
+!updated : 05-03-25
 
 !program 
 program flux2d
@@ -29,7 +29,7 @@ if (options%cdisplay) then
     write(*,'(A)')'+--------------------------------------------+'
     write(*,'(A)')'|                   flux 2d                  |'
     write(*,'(A)')'|      2d unstructured euler flow solver     |'
-    write(*,'(A)')'|       Version 0.0.7 || 02/03/2026          |'
+    write(*,'(A)')'|       Version 0.0.7 || 05/03/2026          |'
     write(*,'(A)')'|                 Max Wood                   |'
     write(*,'(A)')'|           University of Bristol            |'
     write(*,'(A)')'|    Department of Aerospace Engineering     |'
@@ -92,6 +92,7 @@ elseif (options%mode == 'adjoint') then !adjoint solve
     ! call write_vtk(mesh,options,'flow.vtk')
     call write_vtu(mesh,options,'flow.vtu')
     call write_gradient('gradient',mesh)
+    call write_forces('forces',mesh)
 end if 
 if (options%cdisplay) then
     print *, 'COMPLETE'

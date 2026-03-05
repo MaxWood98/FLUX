@@ -1250,6 +1250,7 @@ do iteration=1,options%niter_max
         psirhores0 = sqrt(sum((mesh%residual)**2))
     end if 
     psirhores = log10(sqrt(sum((mesh%residual)**2))/psirhores0)
+    mesh%psires = psirhores
     if (psirhores .LE. options%residual_convtol) then 
         resconv = .true.
     end if 

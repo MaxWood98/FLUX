@@ -245,6 +245,17 @@ call mesh%get_edges_geometry()
 
 !evaluate the cell volumes 
 call mesh%get_cells_volume()
+
+!initialise properties
+mesh%rhores = 0.0d0 
+mesh%psires = 0.0d0 
+mesh%cx = 0.0d0 
+mesh%cy = 0.0d0 
+mesh%cl = 0.0d0 
+mesh%cd = 0.0d0 
+mesh%cm = 0.0d0 
+mesh%mflux_in = 0.0d0 
+mesh%mflux_out = 0.0d0 
 return 
 end subroutine import_mesh
 
@@ -661,6 +672,7 @@ open(11,file=filename)
 write(11,'(A,E23.16)') 'cl = ',mesh%cl
 write(11,'(A,E23.16)') 'cd = ',mesh%cd
 write(11,'(A,E23.16)') 'rhores = ',mesh%rhores
+write(11,'(A,E23.16)') 'psires = ',mesh%psires
 close(11)
 return 
 end subroutine write_forces
