@@ -103,13 +103,11 @@ m2 = vn2/c2
 if (real(m1,dp) .LE. 1.0d0) then 
     m1p = 0.25d0*((m1 + 1.0d0)**2)
 else !m1 .LE. -1.0d0
-    ! m1p = 0.5d0*(m1 + abs(m1))
     m1p = 0.5d0*(m1 + sqrt(m1*m1))
 end if 
 if (real(m2,dp) .LE. 1.0d0) then 
     m2p = -0.25d0*((m2 - 1.0d0)**2)
 else !m1 .LE. -1.0d0
-    ! m2p = 0.5d0*(m2 - abs(m2))
     m2p = 0.5d0*(m2 - sqrt(m2*m2))
 end if 
 ma = m1p + m2p
@@ -209,6 +207,68 @@ else
 end if 
 return 
 end subroutine ausm_flux
+
+!AUSM flux (complex) ===============
+subroutine ausm_flux_cpx(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,gamma,nx,ny,elen,fx1,fx2,fx3,fx4)
+implicit none 
+
+!variables - inout 
+complex(dp) :: rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,gamma,nx,ny,elen
+complex(dp) :: fx1,fx2,fx3,fx4
+
+!variables - local
+complex(dp) ::  ma,c1,c2,p1p,p2p,vn1,vn2,m1p,m2p,m1,m2,pb
+
+!get edge normal velocities
+vn1 = u1*nx + v1*ny 
+vn2 = u2*nx + v2*ny 
+
+!get the speed of sound in each cell 
+c1 = speed_of_sound_cpx(p1,rho1,gamma)
+c2 = speed_of_sound_cpx(p2,rho2,gamma)
+
+!get the machs in each cell
+m1 = vn1/c1
+m2 = vn2/c2
+if (abs(real(m1,dp)) .LE. 1.0d0) then 
+    m1p = 0.25d0*((m1 + 1.0d0)**2)
+else !m1 .LE. -1.0d0
+    m1p = 0.5d0*(m1 + sqrt(m1*m1))
+end if 
+if (abs(real(m2,dp)) .LE. 1.0d0) then 
+    m2p = -0.25d0*((m2 - 1.0d0)**2)
+else !m1 .LE. -1.0d0
+    m2p = 0.5d0*(m2 - sqrt(m2*m2))
+end if 
+ma = m1p + m2p
+
+!evaluate the boundary pressure
+if (abs(real(m1,dp)) .LE. 1.0d0) then 
+    p1p = 0.25d0*p1*(m1 + 1.0)*(m1 + 1.0)*(2.0 - m1)
+else
+    p1p = 0.5d0*p1*(m1 + sqrt(m1*m1))/m1
+end if 
+if (abs(real(m2,dp)) .LE. 1.0d0) then 
+    p2p = 0.25d0*p2*(m2 - 1.0)*(m2 - 1.0)*(2.0 + m2)
+else
+    p2p = 0.5d0*p2*(m2 - sqrt(m2*m2))/m2
+end if 
+pb = p1p + p2p 
+
+!evaluate the flux
+if (real(ma,dp) .GE. 0.0d0) then 
+    fx1 = ma*rho1*c1*elen
+    fx2 = (ma*rho1*c1*u1 + nx*pb)*elen
+    fx3 = (ma*rho1*c1*v1 + ny*pb)*elen
+    fx4 = ma*c1*(rho1*e1 + p1)*elen
+else
+    fx1 = ma*rho2*c2*elen
+    fx2 = (ma*rho2*c2*u2 + nx*pb)*elen
+    fx3 = (ma*rho2*c2*v2 + ny*pb)*elen
+    fx4 = ma*c2*(rho2*e2 + p2)*elen
+end if 
+return 
+end subroutine ausm_flux_cpx
 
 !Roe flux ===============
 subroutine roe_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,gamma,nx,ny,elen,fx1,fx2,fx3,fx4)
