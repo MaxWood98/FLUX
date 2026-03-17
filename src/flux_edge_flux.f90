@@ -270,6 +270,130 @@ end if
 return 
 end subroutine ausm_flux_cpx
 
+!AUSM+up flux ===============
+subroutine ausmpup_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,gamma,nx,ny,elen,fx1,fx2,fx3,fx4,machinf,R)
+implicit none 
+
+!variables - inout 
+real(dp) :: rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,gamma,nx,ny,elen,machinf,R
+real(dp) :: fx1,fx2,fx3,fx4
+
+!variables - local
+real(dp) :: vn1,vn2,m1,m2,mbar2,mo2,mo,fa,rho12,t1,t2,c12,cs1,cs2,ct1,ct2!,c1,c2
+real(dp) :: m41,m42,m12,mdot12,p51,p52,p12
+
+!get edge normal velocities
+vn1 = u1*nx + v1*ny 
+vn2 = u2*nx + v2*ny 
+
+!get the speed of sound in each cell and the boundary
+! c1 = speed_of_sound(p1,rho1,gamma)
+! c2 = speed_of_sound(p2,rho2,gamma)
+! c12 = 0.5d0*(c1 + c2)
+t1 = p1/(rho1*R)
+cs1 = (((gamma*R*t1)/(gamma - 1.0d0)) + 0.5d0*(u1*u1 + v1*v1))*(2.0*(gamma - 1.0d0))/(gamma + 1.0)
+ct1 = cs1/max(sqrt(cs1),vn1)
+t2 = p2/(rho2*R)
+cs2 = (((gamma*R*t2)/(gamma - 1.0d0)) + 0.5d0*(u2*u2 + v2*v2))*(2.0*(gamma - 1.0d0))/(gamma + 1.0)
+ct2 = cs2/max(sqrt(cs2),-vn2)
+c12 = min(ct1,ct2)
+
+!get the machs in each cell
+m1 = vn1/c12
+m2 = vn2/c12
+
+!get the mach blending functions 
+mbar2 = (vn1*vn1 + vn2*vn2)/(2.0d0*c12*c12)
+mo2 = min(1.0d0,max(mbar2,machinf*machinf))
+mo = sqrt(mo2)
+fa = mo*(2.0d0 - mo)
+m41 = ausmpup_mach_blend(m1,1.0d0)
+m42 = ausmpup_mach_blend(m2,-1.0d0)
+rho12 = 0.5d0*(rho1 + rho2)
+
+!get the blended mach 
+m12 = m41 + m42 - (0.25d0/fa)*max(1.0d0 - mbar2,0.0d0)*((p2 - p1)/(rho12*c12*c12))
+
+!get the mass flux 
+if (m12 .GT. 0.0d0) then 
+    mdot12 = m12*c12*rho1
+else
+    mdot12 = m12*c12*rho2
+end if 
+
+!get the pressure flux 
+p51 = ausmpup_pressure_blend(m1,1.0d0,fa)
+p52 = ausmpup_pressure_blend(m2,-1.0d0,fa)
+p12 = p51*p1 + p52*p2 - 0.75d0*p51*p52*(rho1 + rho2)*fa*c12*(vn2 - vn1)
+
+!evaluate the flux
+if (mdot12 .GT. 0.0d0) then 
+    fx1 = mdot12*elen 
+    fx2 = (mdot12*u1 + nx*p12)*elen
+    fx3 = (mdot12*v1 + ny*p12)*elen
+    fx4 = m12*c12*(rho1*e1 + p1)*elen
+else
+    fx1 = mdot12*elen 
+    fx2 = (mdot12*u2 + nx*p12)*elen
+    fx3 = (mdot12*v2 + ny*p12)*elen
+    fx4 = m12*c12*(rho2*e2 + p2)*elen
+end if 
+return 
+end subroutine ausmpup_flux
+
+!AUSM+up mach function ===============
+function ausmpup_mach_blend(m,pm) result(m4)
+implicit none 
+
+!variables - inout 
+real(dp) :: m,pm,m4
+
+!variables - local
+real(dp) :: m1,m2,m2m
+
+!get m1 and m2
+m1 = 0.5d0*(m + pm*abs(m))
+m2 = pm*0.25d0*((m + pm)**2)
+
+!get m4
+if (abs(m) .GE. 1.0d0) then 
+    m4 = m1
+else
+    m2m = -pm*0.25d0*((m - pm)**2)
+    m4 = m2*(1.0d0 - pm*2.0d0*m2m)
+end if 
+return 
+end function ausmpup_mach_blend
+
+!AUSM+up pressure function ===============
+function ausmpup_pressure_blend(m,pm,fa) result(p5)
+implicit none 
+
+!variables - inout 
+real(dp) :: m,pm,p5,fa
+
+!variables - local
+real(dp) :: m1,m2,m2m,a
+
+!get m1 and m2
+m1 = 0.5d0*(m + pm*abs(m))
+m2 = pm*0.25d0*((m + pm)**2)
+
+!get p5
+if (abs(m) .GE. 1.0d0) then 
+    p5 = (1.0d0/m)*m1
+else
+    a = (3.0d0/16.0d0)*(-4.0d0 + 5.0d0*fa*fa)
+    m2m = -pm*0.25d0*((m - pm)**2)
+    p5 = m2*((pm*2.0d0 - m) - pm*16.0d0*a*m*m2m)
+end if 
+return 
+end function ausmpup_pressure_blend
+
+
+
+
+
 !Roe flux ===============
 subroutine roe_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,gamma,nx,ny,elen,fx1,fx2,fx3,fx4)
 implicit none 
