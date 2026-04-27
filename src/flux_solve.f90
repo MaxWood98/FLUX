@@ -1,7 +1,7 @@
 !flux 2d flow solve module 
 !max wood
-!version : 0.0.4
-!updated : 02-03-26
+!version : 0.0.5
+!updated : 27-04-26
 
 !module 
 module flux_solve
@@ -395,11 +395,13 @@ type(flux_options) :: options
 
 !variables - local 
 integer(in32) :: ee,c1,c2
-complex(dp) :: velnorm,machnorm,gamma_cpx
+complex(dp) :: velnorm,machnorm,gamma_cpx,R_cpx,machinf_cpx
 complex(dp) :: rho1,u1,v1,p1,e1,rho2,u2,v2,p2,e2,fx1,fx2,fx3,fx4
 
-!get complex gamma
+!get complex values
 gamma_cpx = complex(options%gamma,0.0d0)
+R_cpx = complex(options%R,0.0d0)
+machinf_cpx = complex(options%machinf,0.0d0)
 
 !evaluate each edge flux 
 !$OMP do schedule(guided,50) 
@@ -429,6 +431,8 @@ do ee=1,mesh%nedge
             call vanleer_flux_cpx(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,gamma_cpx,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
         elseif (options%flux_method == 'ausm') then 
             call ausm_flux_cpx(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,gamma_cpx,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
+        elseif (options%flux_method == 'ausm+up') then 
+            call ausmpup_flux_cpx(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,gamma_cpx,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4,machinf_cpx,R_cpx)
         elseif (options%flux_method == 'roe') then 
             ! call roe_flux_cpx(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,gamma_cpx,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
         elseif (options%flux_method == 'jameson') then 

@@ -1,7 +1,7 @@
 !flux 2d - a cell based euler solver
 !max wood
-!version : 0.0.7
-!updated : 05-03-25
+!version : 0.0.8
+!updated : 27-04-26
 
 !program 
 program flux2d
@@ -29,7 +29,7 @@ if (options%cdisplay) then
     write(*,'(A)')'+--------------------------------------------+'
     write(*,'(A)')'|                   flux 2d                  |'
     write(*,'(A)')'|      2d unstructured euler flow solver     |'
-    write(*,'(A)')'|       Version 0.0.7 || 05/03/2026          |'
+    write(*,'(A)')'|       Version 0.0.8 || 27/04/2026          |'
     write(*,'(A)')'|                 Max Wood                   |'
     write(*,'(A)')'|           University of Bristol            |'
     write(*,'(A)')'|    Department of Aerospace Engineering     |'
