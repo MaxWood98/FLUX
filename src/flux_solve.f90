@@ -132,7 +132,7 @@ do iteration=1,options%niter_max
     !$OMP end do 
 
     !evaluate cell spectral radii and timesteps 
-    !$OMP do schedule(guided,50)
+    !$OMP do schedule(guided,50) 
     do cc=1,mesh%ncell
         mesh%cells_specrad(cc) = 0.0d0 
         do ee=1,mesh%cells(cc)%nedge
@@ -211,7 +211,6 @@ mesh%w40 = mesh%w4
 
 !$OMP end single
 
-
 !iterate
 do rr=1,options%rk_niter
 
@@ -230,7 +229,7 @@ do rr=1,options%rk_niter
     end if  
 
     !timestep each cell 
-    !$OMP do schedule(guided,50)
+    !$OMP do schedule(guided,50) 
     do cc=1,mesh%ncell
         r1 = 0.0d0 
         r2 = 0.0d0 

@@ -2,7 +2,8 @@
 # buildargs = -O0 -Wall -fbounds-check -ffpe-trap=zero,overflow,underflow,invalid,denormal -fbacktrace -fcheck=all -fopenmp
 # buildargs = -O0 -Wall -fbounds-check -fbacktrace -fcheck=all -fopenmp
 # buildargs = -O0 -fopenmp
-buildargs = -O2 -fopenmp
+# buildargs = -O2 -fopenmp -pg -g -no-pie
+buildargs = -O2 -fopenmp 
 # buildargs = -O2 -fopt-info-optimized=$@_opt.dat
 
 #build settings
@@ -41,7 +42,7 @@ build: flux_link
 
 #linking procedure
 flux_link: $(OBJS) $(addprefix $(OBJDIR), flux_main.o)
-	gfortran -o flux $^ $(buildsettings) -I obj $(buildargs) 
+	gfortran $(buildargs) -o flux $^ $(buildsettings) -I obj 
 
 #clean procedure 
 clean: 
