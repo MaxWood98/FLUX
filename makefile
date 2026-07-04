@@ -3,8 +3,10 @@
 # buildargs = -O0 -Wall -fbounds-check -fbacktrace -fcheck=all -fopenmp
 # buildargs = -O0 -fopenmp
 # buildargs = -O2 -fopenmp -pg -g -no-pie
-buildargs = -O2 -fopenmp 
+# buildargs = -O2 -fopenmp 
 # buildargs = -O2 -fopt-info-optimized=$@_opt.dat
+# buildargs = -O3 -march=native -ffast-math -fopenmp -fno-stack-arrays -fno-protect-parens
+buildargs = -O3 -march=native -ffast-math -funroll-loops -ftree-vectorize -fopenmp
 
 #build settings
 buildsettings = -J obj

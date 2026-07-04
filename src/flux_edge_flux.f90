@@ -1,7 +1,7 @@
 !flux 2d edge flux evaluation module 
 !max wood
-!version : 0.0.5
-!updated : 27-04-26
+!version : 0.0.6
+!updated : 04-07-26
 
 !module 
 module edge_flux
@@ -703,7 +703,7 @@ subroutine farfield_supersonic_bc_prescribed(rhob,ub,vb,pb,eb,mesh,c,options,inf
 implicit none 
 
 !variables - inout 
-integer(in32) :: c,inflow_outflow
+integer(in64) :: c,inflow_outflow
 type(flux_mesh) :: mesh 
 type(flux_options) :: options 
 
@@ -731,7 +731,7 @@ subroutine farfield_supersonic_bc_prescribed_cpx(rhob,ub,vb,pb,eb,mesh,c,options
 implicit none 
 
 !variables - inout 
-integer(in32) :: c,inflow_outflow
+integer(in64) :: c,inflow_outflow
 type(flux_mesh_cpx) :: mesh 
 type(flux_options) :: options 
 
@@ -759,7 +759,7 @@ subroutine farfield_subsonic_bc_characteristic(rhob,ub,vb,pb,eb,mesh,c,e,options
 implicit none 
 
 !variables - inout 
-integer(in32) :: e,c,inflow_outflow
+integer(in64) :: e,c,inflow_outflow
 real(dp) :: rhob,ub,vb,pb,eb
 type(flux_mesh) :: mesh 
 type(flux_options) :: options 
@@ -837,7 +837,7 @@ subroutine farfield_subsonic_bc_characteristic_cpx(rhob,ub,vb,pb,eb,mesh,c,e,opt
 implicit none 
 
 !variables - inout 
-integer(in32) :: e,c,inflow_outflow
+integer(in64) :: e,c,inflow_outflow
 complex(dp) :: rhob,ub,vb,pb,eb
 type(flux_mesh_cpx) :: mesh 
 type(flux_options) :: options 
@@ -915,7 +915,7 @@ subroutine subsonic_stagnation_inflow_bc(rhob,ub,vb,pb,eb,mesh,c,e,options)
 implicit none 
 
 !variables - inout 
-integer(in32) :: e,c
+integer(in64) :: e,c
 real(dp) :: rhob,ub,vb,pb,eb
 type(flux_mesh) :: mesh 
 type(flux_options) :: options 
@@ -976,7 +976,7 @@ subroutine subsonic_stagnation_inflow_bc_cpx(rhob,ub,vb,pb,eb,mesh,c,e,options)
 implicit none 
 
 !variables - inout 
-integer(in32) :: e,c
+integer(in64) :: e,c
 complex(dp) :: rhob,ub,vb,pb,eb
 type(flux_mesh_cpx) :: mesh 
 type(flux_options) :: options 
@@ -1037,7 +1037,7 @@ subroutine subsonic_pressure_outflow_bc_characteristic(rhob,ub,vb,pb,eb,mesh,c,e
 implicit none 
 
 !variables - inout 
-integer(in32) :: e,c
+integer(in64) :: e,c
 real(dp) :: rhob,ub,vb,pb,eb
 real(dp) :: pratio
 type(flux_mesh) :: mesh 
@@ -1114,7 +1114,7 @@ subroutine subsonic_pressure_outflow_bc_characteristic_cpx(rhob,ub,vb,pb,eb,mesh
 implicit none 
 
 !variables - inout 
-integer(in32) :: e,c
+integer(in64) :: e,c
 complex(dp) :: rhob,ub,vb,pb,eb
 complex(dp) :: pratio
 type(flux_mesh_cpx) :: mesh 

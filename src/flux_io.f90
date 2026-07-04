@@ -1,7 +1,7 @@
 !flux 2d io module 
 !max wood
-!version : 0.0.5
-!updated : 02-03-26
+!version : 0.0.6
+!updated : 04-07-26
 
 !module 
 module flux_io
@@ -17,7 +17,7 @@ implicit none
 type(flux_options) :: options 
 
 !variables - local 
-integer(in32) :: nargs
+integer(in64) :: nargs
 
 !check and process supplied command arguments 
 nargs = command_argument_count()
@@ -39,7 +39,8 @@ implicit none
 type(flux_options) :: options 
 
 !variables - Local
-integer(in32) :: ii,fh
+integer(in32) :: fh
+integer(in32) :: ii
 integer(in64) :: itemtemp
 integer(in64), dimension(:), allocatable :: dissflags
 
@@ -65,7 +66,7 @@ call set_real_opt(options%outflow_pratio,fh,'outflow_pratio')
 itemtemp = -1 
 call set_int_opt(itemtemp,fh,'niter_max')
 if (itemtemp .GE. 0) then 
-    options%niter_max = int(itemtemp,in32)
+    options%niter_max = int(itemtemp,in64)
 end if 
 call set_real_opt(options%cfl,fh,'cfl')
 call set_real_opt(options%k2,fh,'k2')
@@ -75,7 +76,7 @@ call set_str_opt(options%adjoint_objective,fh,'adjoint_objective')
 itemtemp = -1 
 call set_int_opt(itemtemp,fh,'num_threads')
 if (itemtemp .GE. 0) then 
-    options%num_threads = int(itemtemp,in32)
+    options%num_threads = int(itemtemp,in64)
 end if 
 call set_real_opt(options%residual_convtol,fh,'residual_convtol')
 call set_int_opt_arr1(dissflags,fh,'RKstagediss_eval')
@@ -109,8 +110,8 @@ type(flux_mesh) :: mesh
 type(flux_options) :: options 
 
 !variables - local
-integer(in32) :: ii,jj
-integer(in32) :: iostatus,cindex,nedge
+integer(in64) :: ii,jj
+integer(in64) :: iostatus,cindex,nedge
 character(len=100) :: rtemp 
 
 !check if file exists 
@@ -608,7 +609,7 @@ character(*), intent(in) :: filename
 type(flux_mesh) :: mesh 
 
 !variables local
-integer(in32) :: cc 
+integer(in64) :: cc 
 
 !write flow data 
 open(11,file=filename) 
@@ -628,7 +629,7 @@ character(*), intent(in) :: filename
 type(flux_mesh) :: mesh 
 
 !variables local
-integer(in32) :: cc 
+integer(in64) :: cc 
 
 !write flow data 
 open(11,file=filename) 
@@ -648,7 +649,7 @@ character(*), intent(in) :: filename
 type(flux_mesh) :: mesh 
 
 !variables local
-integer(in32) :: vv  
+integer(in64) :: vv  
 
 !write
 open(11,file=filename) 

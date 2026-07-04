@@ -5,11 +5,11 @@
 console_display = yes
 
 #mesh path 
-meshpath = grid_cell_kh
+meshpath = grid_cell
 
 #flow conditions 
-aoadeg = 10.0
-machinf = 2.0
+aoadeg = 0.0
+machinf = 4.0
 gamma = 1.4
 R = 287.058
 tinf = 288.0

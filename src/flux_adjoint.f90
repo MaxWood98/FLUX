@@ -1,7 +1,7 @@
 !flux 2d adjoint module 
 !max wood
-!version : 0.0.4
-!updated : 02-03-26
+!version : 0.0.5
+!updated : 04-07-26
 
 module flux_adjoint
 use flux_io
@@ -20,7 +20,7 @@ type(flux_options) :: options
 real(dp), dimension(:), allocatable :: dJdW,dJdX
 
 !variables - local 
-integer(in32) :: cc 
+integer(in64) :: cc 
 real(dp) :: dmfluxw1,dmfluxw2,dmfluxw3,dmfluxw4
 
 !allocate the jacobians
@@ -39,7 +39,7 @@ end do
 do cc=1,mesh%ncell
 
     !evaluate the primitive variable gradients
-    call get_drhodw_dvelndw(mesh,options,cc,-3,dmfluxw1,dmfluxw2,dmfluxw3,dmfluxw4)
+    call get_drhodw_dvelndw(mesh,options,cc,-3_in64,dmfluxw1,dmfluxw2,dmfluxw3,dmfluxw4)
 
     !populate dJdW
     dJdW(cc) = dmfluxw1
@@ -55,7 +55,7 @@ subroutine get_drhodw_dvelndw(mesh,options,c,bc,dmfluxw1,dmfluxw2,dmfluxw3,dmflu
 implicit none 
 
 !variables - inout
-integer(in32) :: c,bc
+integer(in64) :: c,bc
 ! real(dp) :: grhow1,grhow2,grhow3,grhow4,gvelw1,gvelw2,gvelw3,gvelw4
 
 real(dp) :: dmfluxw1,dmfluxw2,dmfluxw3,dmfluxw4
@@ -64,8 +64,8 @@ type(flux_mesh) :: mesh
 type(flux_options) :: options 
 
 !variables - local 
-integer(in32) :: ee 
-integer(in32) :: etgt
+integer(in64) :: ee 
+integer(in64) :: etgt
 real(dp) :: w1,w2,w3,w4,h
 ! real(dp) :: grho1,grho2,grho3,grho4
 ! real(dp) :: gu1,gu2,gu3,gu4
@@ -189,7 +189,7 @@ type(flux_options) :: options
 real(dp), dimension(:), allocatable :: dJdW,dJdX
 
 !variables - local 
-integer(in32) :: cc,ee 
+integer(in64) :: cc,ee 
 real(dp) :: gradc,gw1,gw2,gw3,gw4,wcos,wsin
 real(dp) :: dcddp(mesh%ncell)
 
@@ -257,7 +257,7 @@ subroutine get_dpdw(mesh,options,c,gw1,gw2,gw3,gw4)
 implicit none 
 
 !variables - inout
-integer(in32) :: c
+integer(in64) :: c
 real(dp) :: gw1,gw2,gw3,gw4
 type(flux_mesh) :: mesh 
 type(flux_options) :: options 
@@ -305,8 +305,8 @@ type(flux_options) :: options
 
 !variables - local 
 logical :: shared_colour
-integer(in32) :: ii,cc,ee,ee2
-integer(in32) :: colour,cadj,cadj2 
+integer(in64) :: ii,cc,ee,ee2
+integer(in64) :: colour,cadj,cadj2 
 
 !colour cells 
 mesh%cells_colour(:) = -1
@@ -377,8 +377,8 @@ type(flux_options) :: options
 
 !variables - local 
 logical :: shared_colour
-integer(in32) :: ii,vv,ee,ee2
-integer(in32) :: colour,cadj,vidx  
+integer(in64) :: ii,vv,ee,ee2
+integer(in64) :: colour,cadj,vidx  
 
 !colour vertices 
 mesh%vertices_colour(:) = -1
@@ -434,8 +434,8 @@ type(flux_options) :: options
 real(dp), dimension(:,:), allocatable :: dRdW
 
 !variables - local 
-integer(in32) :: cc,vv,ee,cc2
-integer(in32) :: cidx
+integer(in64) :: cc,vv,ee,cc2
+integer(in64) :: cidx
 
 real(dp) :: r1,r2,r3,r4,h
 real(dp) :: w10(mesh%ncell),w20(mesh%ncell),w30(mesh%ncell),w40(mesh%ncell)
@@ -546,9 +546,9 @@ type(flux_options) :: options
 type(csc_matrix) :: dRdW
 
 !variables - local 
-integer(in32) :: clr,cc,vv,ee,rr,aa
-integer(in32) :: ncolour,r0,col_offset,row,col,cadj,nblock
-integer(in32) :: column_offset_index
+integer(in64) :: clr,cc,vv,ee,rr,aa
+integer(in64) :: ncolour,r0,col_offset,row,col,cadj,nblock
+integer(in64) :: column_offset_index
 real(dp) :: h
 complex(dp) :: w10(mesh_cpx%ncell),w20(mesh_cpx%ncell),w30(mesh_cpx%ncell),w40(mesh_cpx%ncell)
 complex(dp) :: pr1c(mesh_cpx%ncell),pr2c(mesh_cpx%ncell),pr3c(mesh_cpx%ncell),pr4c(mesh_cpx%ncell)
@@ -761,9 +761,9 @@ type(flux_options) :: options
 type(csc_matrix) :: dRdX
 
 !variables - local 
-integer(in32) :: clr,cc,vv,ee,rr,aa
-integer(in32) :: ncolour,r0,col_offset,row,col,cadj,nblock
-integer(in32) :: column_offset_index
+integer(in64) :: clr,cc,vv,ee,rr,aa
+integer(in64) :: ncolour,r0,col_offset,row,col,cadj,nblock
+integer(in64) :: column_offset_index
 real(dp) :: h
 complex(dp) :: pr1c(mesh_cpx%ncell),pr2c(mesh_cpx%ncell),pr3c(mesh_cpx%ncell),pr4c(mesh_cpx%ncell)
 complex(dp) :: coordinatetes0_x(mesh_cpx%nvertex),coordinatetes0_y(mesh_cpx%nvertex)
@@ -923,7 +923,7 @@ type(csc_matrix) :: dRdW_sp
 real(dp) :: dJdW(4*mesh%ncell),cell_timestep(4*mesh%ncell)
 
 !variables - local
-integer(in32) :: rr,cc
+integer(in64) :: rr,cc
 
 !store the initial psi
 !$OMP single
@@ -941,7 +941,7 @@ do rr=1,options%rk_niter
 
 
     !step each cell 
-    !$OMP do schedule(guided,50) 
+    !$OMP do schedule(static) 
     do cc=1,4*mesh%ncell
         mesh%psi(cc) = mesh%psi0(cc) - rk4_alpha(rr)*cell_timestep(cc)*(mesh%psi_dRdw_prd(cc) - dJdW(cc))
         if (isnan(mesh%psi(cc))) then 
@@ -971,7 +971,7 @@ real(dp) :: vector(matrix%nrow),result(matrix%ncol)
 integer(in64) :: ii,jj
 
 !evaluate
-!$OMP do schedule(guided,50) private(jj)
+!$OMP do schedule(static) private(jj)
 do ii=1,matrix%ncol
     result(ii) = 0.0d0 
     do jj=matrix%col_pointer(ii),matrix%col_pointer(ii+1)-1
@@ -992,8 +992,8 @@ type(flux_mesh_cpx) :: mesh_cpx
 type(flux_options) :: options 
 
 !variables - local 
-integer(in32) :: ii,jj
-integer(in32) :: cindex,nedge
+integer(in64) :: ii,jj
+integer(in64) :: cindex,nedge
 
 !allocate the complex mesh 
 mesh_cpx%nvertex = mesh%nvertex
@@ -1126,7 +1126,7 @@ type(flux_options) :: options
 
 !variables - local 
 logical :: nanflag,resconv
-integer(in32) :: iteration,cc,ee
+integer(in64) :: iteration,cc,ee
 real(dp) :: psirhores,psirhores0
 real(dp) :: cell_timestep(4*mesh%ncell)
 real(dp), dimension(:), allocatable :: dJdW,dJdX,dtotal
@@ -1137,7 +1137,8 @@ type(flux_mesh_cpx) :: mesh_cpx
 resconv = .false.
 nanflag = .false.
 
-!set the number of threads 
+!set up the openmp environment 
+call omp_set_dynamic(0)
 call omp_set_num_threads(options%num_threads)
 
 !get the number of adjacent cells for each mesh cell

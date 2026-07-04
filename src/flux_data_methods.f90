@@ -1,7 +1,7 @@
 !flux 2d data and methods module 
 !max wood
-!version : 0.0.2
-!updated : 12-02-26
+!version : 0.0.3
+!updated : 04-07-26
 
 !module 
 module flux_data_methods
@@ -25,7 +25,7 @@ real(dp) :: rk4_alpha(4) = (/1.0d0/4.0d0,1.0d0/3.0d0,1.0d0/2.0d0,1.0d0/) !rk4
 type flux_options 
     logical :: cdisplay
     logical, dimension(:), allocatable :: rk_dissipation
-    integer(in32) :: niter_max,rk_niter,num_threads
+    integer(in64) :: niter_max,rk_niter,num_threads
     real(dp) :: cfl,aoadeg,aoarad,gamma,R,k2,k4,residual_convtol,outflow_pratio
     real(dp) :: machinf,tinf,rhoinf,cinf,pinf,velinf,uinf,vinf,p0inf,rho0inf,t0inf
     character(len=:), allocatable :: meshpath,meshname,mode,flux_method,adjoint_objective
@@ -33,49 +33,49 @@ end type flux_options
 
 !vertex types
 type flux_vertex
-    integer(in32) :: index
-    integer(in32) :: ncell
-    integer(in32), dimension(:), allocatable :: cells
+    integer(in64) :: index
+    integer(in64) :: ncell
+    integer(in64), dimension(:), allocatable :: cells
     real(dp) :: coordinate(2)
 end type flux_vertex
 type flux_vertex_cpx
-    integer(in32) :: index
-    integer(in32) :: ncell
-    integer(in32), dimension(:), allocatable :: cells
+    integer(in64) :: index
+    integer(in64) :: ncell
+    integer(in64), dimension(:), allocatable :: cells
     complex(dp) :: coordinate(2)
 end type flux_vertex_cpx
 
 !edge types
 type flux_edge 
-    integer(in32) :: index
-    integer(in32) :: v1,v2,c1,c2
+    integer(in64) :: index
+    integer(in64) :: v1,v2,c1,c2
     real(dp) :: dx,dy,nx,ny,length
 end type flux_edge
 type flux_edge_cpx 
-    integer(in32) :: index
-    integer(in32) :: v1,v2,c1,c2
+    integer(in64) :: index
+    integer(in64) :: v1,v2,c1,c2
     complex(dp) :: dx,dy,nx,ny,length
 end type flux_edge_cpx
 
 !cell types
 type flux_cell 
-    integer(in32) :: index
-    integer(in32) :: nedge
-    integer(in32), dimension(:), allocatable :: edgev1,edgev2,edgec,edge
+    integer(in64) :: index
+    integer(in64) :: nedge
+    integer(in64), dimension(:), allocatable :: edgev1,edgev2,edgec,edge
     real(dp), dimension(:), allocatable :: edge_sign
 end type flux_cell
 type flux_cell_cpx
-    integer(in32) :: index
-    integer(in32) :: nedge
-    integer(in32), dimension(:), allocatable :: edgev1,edgev2,edgec,edge
+    integer(in64) :: index
+    integer(in64) :: nedge
+    integer(in64), dimension(:), allocatable :: edgev1,edgev2,edgec,edge
     complex(dp), dimension(:), allocatable :: edge_sign
 end type flux_cell_cpx
 
 !mesh type 
 type flux_mesh
-    integer(in32) :: nvertex,nedge,ncell 
+    integer(in64) :: nvertex,nedge,ncell 
     real(dp) :: cx,cy,cl,cd,cm,mflux_in,mflux_out,rhores,psires
-    integer(in32), dimension(:), allocatable :: vertices_colour,cells_colour,cells_nadj
+    integer(in64), dimension(:), allocatable :: vertices_colour,cells_colour,cells_nadj
     real(dp), dimension(:), allocatable :: cells_specrad,cells_volume,cells_dt,cells_psensor
     real(dp), dimension(:), allocatable :: edges_specrad
     real(dp), dimension(:), allocatable :: rho,u,v,p,mach,e,cp
@@ -99,9 +99,9 @@ end type flux_mesh
 
 !complex mesh type 
 type flux_mesh_cpx
-    integer(in32) :: nvertex,nedge,ncell 
+    integer(in64) :: nvertex,nedge,ncell 
     complex(dp) :: cx,cy,cl,cd,cm,mflux_in,mflux_out
-    integer(in32), dimension(:), allocatable :: vertices_colour,cells_colour,cells_nadj
+    integer(in64), dimension(:), allocatable :: vertices_colour,cells_colour,cells_nadj
     complex(dp), dimension(:), allocatable :: cells_specrad,cells_volume,cells_dt,cells_psensor
     complex(dp), dimension(:), allocatable :: edges_specrad
     complex(dp), dimension(:), allocatable :: rho,u,v,p,mach,e,cp
@@ -146,7 +146,7 @@ implicit none
 class(flux_mesh) :: self 
 
 !variables - local
-integer(in32) :: ii 
+integer(in64) :: ii 
 real(dp) :: dx,dy 
 
 !evaluate 
@@ -170,7 +170,7 @@ implicit none
 class(flux_mesh_cpx) :: self 
 
 !variables - local
-integer(in32) :: ii 
+integer(in64) :: ii 
 complex(dp) :: dx,dy 
 
 !evaluate 
@@ -194,7 +194,7 @@ implicit none
 class(flux_mesh) :: self
 
 !variables - local
-integer(in32) :: ii,jj
+integer(in64) :: ii,jj
 
 !evaluate cell volumes 
 do ii=1,self%ncell
@@ -227,7 +227,7 @@ implicit none
 class(flux_mesh) :: self
 
 !variables - local
-integer(in32) :: ii
+integer(in64) :: ii
 
 !evaluate 
 self%cells_nadj(:) = 0
@@ -248,7 +248,7 @@ implicit none
 class(flux_mesh) :: self
 
 !variables - local
-integer(in32) :: ii,jj,vidx
+integer(in64) :: ii,jj,vidx
 
 !count the cells on each vertex
 do ii=1,self%nvertex

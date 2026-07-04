@@ -1,7 +1,7 @@
 !flux 2d - a cell based euler solver
 !max wood
-!version : 0.0.8
-!updated : 27-04-26
+!version : 0.0.9
+!updated : 04-07-26
 
 !program 
 program flux2d
@@ -29,7 +29,7 @@ if (options%cdisplay) then
     write(*,'(A)')'+--------------------------------------------+'
     write(*,'(A)')'|                   flux 2d                  |'
     write(*,'(A)')'|      2d unstructured euler flow solver     |'
-    write(*,'(A)')'|       Version 0.0.8 || 27/04/2026          |'
+    write(*,'(A)')'|       Version 0.0.9 || 04/07/2026          |'
     write(*,'(A)')'|                 Max Wood                   |'
     write(*,'(A)')'|           University of Bristol            |'
     write(*,'(A)')'|    Department of Aerospace Engineering     |'
@@ -77,7 +77,6 @@ if (options%mode == 'solve') then !primal solve
     call write_forces('forces',mesh)
 elseif (options%mode == 'adjoint') then !adjoint solve
 
-    !UPDATE INTEGER TO IN64 FOR ALL METHODS INDEXING INTO SPARSE JACOBIANS TO AVOID OVERFLOW ERRORS
     !ADD ADJOINT DISSIPATION 
 
     !adjoint dev =====================

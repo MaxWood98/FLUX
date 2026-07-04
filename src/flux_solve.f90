@@ -1,7 +1,7 @@
 !flux 2d flow solve module 
 !max wood
-!version : 0.0.5
-!updated : 27-04-26
+!version : 0.0.6
+!updated : 04-07-26
 
 !module 
 module flux_solve
@@ -19,7 +19,7 @@ type(flux_mesh) :: mesh
 type(flux_options) :: options 
 
 !variables - local 
-integer(in32) :: ii 
+integer(in64) :: ii 
 
 !set angle of atack in radians 
 options%aoarad = options%aoadeg*(pi/180.0d0)
@@ -66,6 +66,8 @@ if (options%cdisplay) then
     ! write(*,'(A,A,A)') '    {density (Kg/m^3): ',real2F0_Xstring(options%rhoinf,6_in64),'}' 
     ! write(*,'(A,A,A)') '    {speed of sound (m/s): ',real2F0_Xstring(sosinf_AC,6_in64),'}' 
     ! write(*,'(A,A,A)') '    {velocity (m/s): ',real2F0_Xstring(options%machinf*sosinf_AC,6_in64),'}' 
+
+
     write(*,'(A)') '    scaled freestream flow properties: '
     write(*,'(A,A,A)') '    {pressure: ',real2F0_Xstring(options%pinf,6_in64),'}' 
     write(*,'(A,A,A)') '    {density: ',real2F0_Xstring(options%rhoinf,6_in64),'}'
@@ -84,8 +86,8 @@ type(flux_mesh) :: mesh
 type(flux_options) :: options 
 
 !variables - local 
-integer(in32) :: ee,cc
-integer(in32) :: iteration
+integer(in64) :: ee,cc
+integer(in64) :: iteration
 logical :: resconv,nanflag
 real(dp) :: rhores,rhores0
 
@@ -93,7 +95,8 @@ real(dp) :: rhores,rhores0
 resconv = .false.
 nanflag = .false.
 
-!set the number of threads 
+!set up the openmp environment /////// !$OMP do schedule(guided,50)
+call omp_set_dynamic(0)
 call omp_set_num_threads(options%num_threads)
 
 !initialise the dissipation arrays to zero (ensures this is ignored for schemes with no dissipation)
@@ -125,14 +128,14 @@ do iteration=1,options%niter_max
     end if
 
     !evaluate edge spectral radii
-    !$OMP do schedule(guided,50)
+    !$OMP do schedule(static)
     do ee=1,mesh%nedge
         call edge_spectral_radius(mesh,options,ee)
     end do 
     !$OMP end do 
 
     !evaluate cell spectral radii and timesteps 
-    !$OMP do schedule(guided,50) 
+    !$OMP do schedule(static)
     do cc=1,mesh%ncell
         mesh%cells_specrad(cc) = 0.0d0 
         do ee=1,mesh%cells(cc)%nedge
@@ -196,7 +199,7 @@ type(flux_options) :: options
 logical :: nanflag
 
 !variables - local 
-integer(in32) :: rr,ee,cc
+integer(in64) :: rr,ee,cc
 real(dp) :: r1,r2,r3,r4,cell_stepsize
 
 !$OMP single
@@ -219,7 +222,7 @@ do rr=1,options%rk_niter
 
     !evaluate edge dissipations 
     if (options%rk_dissipation(rr)) then 
-        !$OMP do schedule(guided,50)
+        !$OMP do schedule(static)
         do cc=1,mesh%ncell
             call cell_pressure_sensor(mesh,cc) 
             call cell_laplacian(mesh,cc) 
@@ -229,7 +232,7 @@ do rr=1,options%rk_niter
     end if  
 
     !timestep each cell 
-    !$OMP do schedule(guided,50) 
+    !$OMP do schedule(static)
     do cc=1,mesh%ncell
         r1 = 0.0d0 
         r2 = 0.0d0 
@@ -272,12 +275,12 @@ type(flux_mesh) :: mesh
 type(flux_options) :: options 
 
 !variables - local 
-integer(in32) :: ee,c1,c2
+integer(in64) :: ee,c1,c2
 real(dp) :: velnorm,machnorm
 real(dp) :: rho1,u1,v1,p1,e1,rho2,u2,v2,p2,e2,fx1,fx2,fx3,fx4
 
 !evaluate each edge flux 
-!$OMP do schedule(guided,50) 
+!$OMP do schedule(static)
 do ee=1,mesh%nedge
     c1 = mesh%edges(ee)%c1
     c2 = mesh%edges(ee)%c2
@@ -333,15 +336,15 @@ do ee=1,mesh%nedge
         machnorm = abs(velnorm)/speed_of_sound(mesh%p(c1),mesh%rho(c1),options%gamma)
         if (machnorm .GE. 1.0) then !supersonic 
             if (velnorm .LT. 0.0d0) then !inflow
-                call farfield_supersonic_bc_prescribed(rho2,u2,v2,p2,e2,mesh,c1,options,1)
+                call farfield_supersonic_bc_prescribed(rho2,u2,v2,p2,e2,mesh,c1,options,1_in64)
             else !outflow
-                call farfield_supersonic_bc_prescribed(rho2,u2,v2,p2,e2,mesh,c1,options,-1)
+                call farfield_supersonic_bc_prescribed(rho2,u2,v2,p2,e2,mesh,c1,options,-1_in64)
             end if 
         else !subsonic 
             if (velnorm .LT. 0.0d0) then !inflow
-                call farfield_subsonic_bc_characteristic(rho2,u2,v2,p2,e2,mesh,c1,ee,options,1)
+                call farfield_subsonic_bc_characteristic(rho2,u2,v2,p2,e2,mesh,c1,ee,options,1_in64)
             else !outflow
-                call farfield_subsonic_bc_characteristic(rho2,u2,v2,p2,e2,mesh,c1,ee,options,-1)
+                call farfield_subsonic_bc_characteristic(rho2,u2,v2,p2,e2,mesh,c1,ee,options,-1_in64)
             end if 
         end if 
         call jameson_flux(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
@@ -362,7 +365,7 @@ do ee=1,mesh%nedge
         velnorm = mesh%u(c1)*mesh%edges(ee)%nx + mesh%v(c1)*mesh%edges(ee)%ny
         machnorm = abs(velnorm)/speed_of_sound(mesh%p(c1),mesh%rho(c1),options%gamma)
         if (machnorm .GE. 1.0) then !supersonic 
-            call farfield_supersonic_bc_prescribed(rho2,u2,v2,p2,e2,mesh,c1,options,-1)
+            call farfield_supersonic_bc_prescribed(rho2,u2,v2,p2,e2,mesh,c1,options,-1_in64)
         else !subsonic 
             call subsonic_pressure_outflow_bc_characteristic(rho2,u2,v2,p2,e2,mesh,c1,ee,options,options%outflow_pratio)
         end if 
@@ -393,7 +396,7 @@ type(flux_mesh_cpx) :: mesh
 type(flux_options) :: options 
 
 !variables - local 
-integer(in32) :: ee,c1,c2
+integer(in64) :: ee,c1,c2
 complex(dp) :: velnorm,machnorm,gamma_cpx,R_cpx,machinf_cpx
 complex(dp) :: rho1,u1,v1,p1,e1,rho2,u2,v2,p2,e2,fx1,fx2,fx3,fx4
 
@@ -403,7 +406,7 @@ R_cpx = complex(options%R,0.0d0)
 machinf_cpx = complex(options%machinf,0.0d0)
 
 !evaluate each edge flux 
-!$OMP do schedule(guided,50) 
+!$OMP do schedule(static)
 do ee=1,mesh%nedge
     c1 = mesh%edges(ee)%c1
     c2 = mesh%edges(ee)%c2
@@ -459,15 +462,15 @@ do ee=1,mesh%nedge
         machnorm = sqrt(velnorm**2)/speed_of_sound_cpx(mesh%p(c1),mesh%rho(c1),gamma_cpx)
         if (real(machnorm,dp) .GE. 1.0) then !supersonic 
             if (real(velnorm,dp) .LT. 0.0d0) then !inflow
-                call farfield_supersonic_bc_prescribed_cpx(rho2,u2,v2,p2,e2,mesh,c1,options,1)
+                call farfield_supersonic_bc_prescribed_cpx(rho2,u2,v2,p2,e2,mesh,c1,options,1_in64)
             else !outflow
-                call farfield_supersonic_bc_prescribed_cpx(rho2,u2,v2,p2,e2,mesh,c1,options,-1)
+                call farfield_supersonic_bc_prescribed_cpx(rho2,u2,v2,p2,e2,mesh,c1,options,-1_in64)
             end if 
         else !subsonic 
             if (real(velnorm,dp) .LT. 0.0d0) then !inflow
-                call farfield_subsonic_bc_characteristic_cpx(rho2,u2,v2,p2,e2,mesh,c1,ee,options,1)
+                call farfield_subsonic_bc_characteristic_cpx(rho2,u2,v2,p2,e2,mesh,c1,ee,options,1_in64)
             else !outflow
-                call farfield_subsonic_bc_characteristic_cpx(rho2,u2,v2,p2,e2,mesh,c1,ee,options,-1)
+                call farfield_subsonic_bc_characteristic_cpx(rho2,u2,v2,p2,e2,mesh,c1,ee,options,-1_in64)
             end if 
         end if 
         call jameson_flux_cpx(rho1,u1,v1,e1,p1,rho2,u2,v2,e2,p2,mesh%edges(ee)%nx,mesh%edges(ee)%ny,mesh%edges(ee)%length,fx1,fx2,fx3,fx4)
@@ -488,7 +491,7 @@ do ee=1,mesh%nedge
         velnorm = mesh%u(c1)*mesh%edges(ee)%nx + mesh%v(c1)*mesh%edges(ee)%ny
         machnorm = sqrt(velnorm**2)/speed_of_sound_cpx(mesh%p(c1),mesh%rho(c1),gamma_cpx)
         if (real(machnorm,dp) .GE. 1.0) then !supersonic 
-            call farfield_supersonic_bc_prescribed_cpx(rho2,u2,v2,p2,e2,mesh,c1,options,-1)
+            call farfield_supersonic_bc_prescribed_cpx(rho2,u2,v2,p2,e2,mesh,c1,options,-1_in64)
         else !subsonic 
             call subsonic_pressure_outflow_bc_characteristic_cpx(rho2,u2,v2,p2,e2,mesh,c1,ee,options,complex(options%outflow_pratio,0.0d0))
         end if 
@@ -518,12 +521,12 @@ type(flux_mesh) :: mesh
 type(flux_options) :: options 
 
 !variables - local 
-integer(in32) :: ee 
-integer(in32) :: c1,c2
+integer(in64) :: ee 
+integer(in64) :: c1,c2
 real(dp) :: s2,s4,psi0,psi1,psi01,dk2,dk4
 
 !evaluate each edge dissipation 
-!$OMP do schedule(guided,50)
+!$OMP do schedule(static)
 do ee=1,mesh%nedge
     if (mesh%edges(ee)%c2 .GT. 0) then
 
@@ -566,11 +569,11 @@ subroutine cell_pressure_sensor(mesh,c)
 implicit none
 
 !variables - inout
-integer(in32) :: c
+integer(in64) :: c
 type(flux_mesh) :: mesh 
 
 !variables - local
-integer(in32) :: ee
+integer(in64) :: ee
 real(dp) :: pn,pd
 
 !evaluate
@@ -589,7 +592,7 @@ subroutine edge_pressure_sensor(mesh,e)
 implicit none
 
 !variables - inout
-integer(in32) :: e
+integer(in64) :: e
 type(flux_mesh) :: mesh 
 
 !evaluate 
@@ -608,11 +611,11 @@ subroutine cell_laplacian(mesh,c)
 implicit none
 
 !variables - inout
-integer(in32) :: c
+integer(in64) :: c
 type(flux_mesh) :: mesh 
 
 !variables - local
-integer(in32) :: ee
+integer(in64) :: ee
 
 !evaluate 
 mesh%l1(c) = 0.0d0 
@@ -633,7 +636,7 @@ subroutine edge_laplacian(mesh,e)
 implicit none
 
 !variables - inout
-integer(in32) :: e
+integer(in64) :: e
 type(flux_mesh) :: mesh 
 
 !evaluate 
@@ -656,7 +659,7 @@ subroutine edge_spectral_radius(mesh,options,e)
 implicit none 
 
 !variables - inout
-integer(in32) :: e
+integer(in64) :: e
 type(flux_mesh) :: mesh 
 type(flux_options) :: options 
 
@@ -688,7 +691,7 @@ type(flux_mesh) :: mesh
 type(flux_options) :: options 
 
 !variables - local 
-integer(in32) :: ee  
+integer(in64) :: ee  
 
 !initialise 
 mesh%cx = 0.0d0 
