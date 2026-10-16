@@ -5,22 +5,22 @@
 console_display = yes
 
 #mesh path 
-meshpath = grid_cell
+meshpath = pe_dev
 
 #flow conditions 
 aoadeg = 0.0
-machinf = 4.0
+machinf = 8.0
 gamma = 1.4
 R = 287.058
 tinf = 288.0
 rhoinf = 1.225
-outflow_pratio = 0.8
+outflow_pratio = 0.0
 
 #solver options 
-niter_max = 10000
+niter_max = 8000
 cfl = 2.0
-k2 = 0.01 
-k4 = 0.01
+k2 = 0.0001 
+k4 = 0.0001
 flux_method = ausm+up
 num_threads = 16
 residual_convtol = -8.0 
